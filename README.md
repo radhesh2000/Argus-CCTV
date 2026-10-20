@@ -1,3 +1,7 @@
+<img width="3840" height="2160" alt="image" src="https://github.com/user-attachments/assets/d6935707-8f80-41ba-a1cb-c5b3aee2def8" />
+
+
+
 # Argus
 
 **Industrial safety video analytics that runs entirely on one box in your plant.**

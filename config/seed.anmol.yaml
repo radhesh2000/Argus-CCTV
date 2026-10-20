@@ -1,0 +1,561 @@
+# Argus seed — Anmol Industries biscuit plant, six real cameras.
+#
+#   uv run argus seed --file config/seed.anmol.yaml
+#
+# Imported *alongside* config/seed.yaml, not instead of it: `argus seed` upserts
+# and never deletes, so the two demo cameras stay exactly as they were and this
+# adds six. Run both after a fresh install.
+#
+# ---------------------------------------------------------------------------
+# THE FOOTAGE IS NOT IN THIS REPOSITORY.
+#
+# These are a customer's cameras. The videos live under `footage/`, which is
+# gitignored, so on any box that does not have them every camera below is marked
+# `optional: true` and the import *skips* it by name:
+#
+#   $ uv run argus seed --file config/seed.anmol.yaml
+#   seeded 0 camera(s), 0 zone(s), 0 policy(ies) (skipped 6 camera(s), 6 zone(s), ...)
+#     skipped: camera 'anmol_packing_3': no footage at /…/footage/anmol-samples/…
+#
+# That is the whole reason `optional:` exists. A fresh clone running this file
+# should get a sentence, not a traceback — and should not get six cameras
+# pointing at nothing, because a camera enrolled against a missing file is an
+# offline tile in the console and a decoder restarting for ever behind it.
+# ---------------------------------------------------------------------------
+#
+# WHAT THESE SOURCES ARE. Five of the six are HEVC (H.265) 2560x1440 at 25 fps,
+# roughly a minute each, straight off the plant's NVR. That is deliberate here:
+# HEVC is the format modern IP cameras actually ship, the demo file is H.264,
+# and until this seed existed nothing in the pipeline had ever been asked to
+# carry H.265 end to end. It decodes on NVDEC and records with `-c copy`
+# unchanged; what it did change is the evidence clip — see
+# docs/PRODUCTION_READINESS.md, "Evidence clips from an HEVC camera".
+#
+# `manpower_headcount` in config/seed.yaml has no `cameras:` key, which means
+# every camera — so these six get headcount-vs-limit the moment they are
+# enrolled, using the zones below.
+#
+# THE PROMPT POLICIES AT THE BOTTOM ARE FOUR, AND EVERY ONE OF THEM IS SCOPED.
+# Until 2026-08-25 this file defined none, because a prompt policy costs one VLM
+# inference per camera per interval and six unscoped cameras is not a bigger
+# seed file, it is a different appliance. The four below are the new detection
+# classes from the customer's own feature list (CCTV-Video-Samples.md), added
+# prompt-first per the roadmap, and they are affordable because each names ONE
+# camera and ONE zone and because their intervals were chosen by arithmetic
+# rather than by copying the demo's 8 s.
+#
+#   THE BUDGET. Measured on this box with the vision engine running:
+#   6.1 s per evaluation, 0.345 evaluations/s at `vlm.max_concurrency: 2`
+#   (docs/BENCHMARKS.md). One camera-policy pair at an 8 s interval demands
+#   1/8 = 0.125 evaluations/s, which is where "about three pairs" comes from.
+#   What matters is the SUM OF 1/interval over every (policy x camera x zone)
+#   schedule, not the count of policies:
+#
+#     carton_loading_count     20 s   0.0500 /s
+#     idle_manpower            30 s   0.0333 /s
+#     broken_biscuit_overflow  45 s   0.0222 /s
+#     packing_floor_waste      90 s   0.0111 /s
+#                                     ------
+#                              total  0.1166 /s   = 34% of 0.345
+#                                                 = 0.93 pairs at 8 s
+#
+#   So four new classes cost less than ONE of the three pairs the box is quoted
+#   for. The intervals are not padding: a carton moves every 10-20 s, a
+#   conversation that matters lasts a minute, a reject trolley fills over
+#   several, and floor waste sits there until somebody sweeps it. A policy
+#   sampled faster than its subject changes buys duplicate alerts, not recall.
+#
+#   WHAT DOES NOT FIT: this box also holds config/seed.yaml's two demo prompt
+#   policies at 8 s and 6 s — 0.2917 /s between them. 0.2917 + 0.1166 = 0.408 /s
+#   against a 0.345 /s ceiling, so the two fleets together are over budget by
+#   18% and the scheduler would start dropping samples to `skipped_in_flight`.
+#   That is an artefact of one box wearing two hats, not a real deployment: a
+#   plant gets its own cameras, not a recording of somebody else's. Measured
+#   with the plant fleet alone in docs/VLM_EVAL.md.
+
+cameras:
+  # Line 3, packing bases 3/4/5/7 — four cameras over one packing hall, each
+  # looking down a different bench. Busy: 15-25 people in frame, most of them
+  # small. Read docs/DETECTOR_EVAL.md before trusting a headcount here.
+  - id: anmol_packing_3
+    name: Line 3 — Packing base 3
+    source: ./footage/anmol-samples/Line_No.3_Packing3_Bas.MP4
+    enabled: true
+    optional: true
+
+  - id: anmol_packing_4
+    name: Line 3 — Packing base 4
+    source: ./footage/anmol-samples/Line_No.3_Packing4_Bas.MOV
+    enabled: true
+    optional: true
+
+  - id: anmol_packing_5
+    name: Line 3 — Packing base 5
+    source: ./footage/anmol-samples/Line_No.3_Packing5_Bas.MP4
+    enabled: true
+    optional: true
+
+  - id: anmol_packing_7
+    name: Line 3 — Packing base 7
+    source: ./footage/anmol-samples/Line_No.3_Packing7_Bas.MP4
+    enabled: true
+    optional: true
+
+  # The dispatch dock: a truck backed into a roller door, pallets moving through
+  # it on a manual jack. The only scene here with a genuine people-and-vehicles
+  # conflict, and the one whose sanctioned limit means something to a safety
+  # officer rather than to a production planner.
+  - id: anmol_loading_point
+    name: Loading point — dispatch dock
+    source: ./footage/anmol-samples/Loading_Point.MOV
+    enabled: true
+    optional: true
+
+  # NOT A CAMERA FEED. This file is a *screen recording of a video call* in which
+  # somebody was sharing the camera — 2910x1682 H.264 at 60 fps, 53 Mbit/s, with
+  # participant tiles across the top and the player's own chrome around the
+  # picture. It is enrolled because it is real footage of a real scene and it
+  # exercises the H.264 path beside five HEVC ones, but its zone has to be drawn
+  # inside the inset (see below) and nobody should read a headcount off it.
+  - id: anmol_broken_biscuits
+    name: Broken biscuits line (screen capture)
+    source: ./footage/anmol-samples/Broken_Biscuits.mov
+    enabled: true
+    optional: true
+
+zones:
+  # Polygons are normalized to the frame (0..1), so they survive the decoder's
+  # 960x544 downscale and any change to it.
+  #
+  # SANCTIONED LIMITS BELOW ARE ILLUSTRATIVE DEMO PLACEHOLDERS, NOT SAFETY RULES.
+  # A real limit comes off Anmol's GMP / manning / safety sheet, not off a
+  # screenshot, and must be set with the site before anything leaves `shadow`.
+  #
+  # Recalibrated 2026-08-29 to the fine-tuned detector now enabled in
+  # config/argus.yaml (detection.model.checkpoint + resolution: 512). The old
+  # values were eyeballed against the stock COCO detector, which under-counted
+  # this plant by ~2x, so each limit sat 2-4x below what the cameras actually
+  # show. Each is now the zone's TYPICAL (median) occupancy as measured by the
+  # new detector over the looped footage — feet-in-polygon, the engine's own
+  # count — cross-checked against the hand labels in labels/val, so a zone reads
+  # at its cap under normal running and trips only when the area genuinely crowds:
+  #
+  #   zone (camera)                      was  now   observed median / peak
+  #   packing_3_floor   (packing_3)       6 -> 12    12 / 14
+  #   packing_4_wrapper (packing_4)       4 -> 11    11 / 13
+  #   packing_5_benches (packing_5)       6 -> 10    10 / 12
+  #   packing_7_benches (packing_7)       5 -> 20    19 / 23
+  #   loading_point_dock(loading_point)   2 ->  3     3 /  4
+  #   broken_biscuits_line(broken_bisc)   3 ->  3     2 /  5  (was already plausible)
+  #
+  # Still DEMO values: do not quote them to Anmol as sanctioned headcounts.
+
+  - id: anmol_packing_3_floor
+    camera_id: anmol_packing_3
+    name: Packing floor
+    # The working band: benches and conveyors across the middle of the shot. The
+    # open tiled floor at the bottom is deliberately outside it — people cross
+    # it constantly and counting them as "on the line" is how a headcount policy
+    # earns its reputation for crying wolf.
+    polygon: [[0.02, 0.10], [0.98, 0.10], [0.98, 0.66], [0.02, 0.66]]
+    sanctioned_limit: 12   # DEMO placeholder, was 6 (stock-detector era); median 12 / peak 14
+    color: "#22d3ee"
+
+  - id: anmol_packing_4_wrapper
+    camera_id: anmol_packing_4
+    name: Wrapper station
+    # Around the Autowrapping machine and its infeed — the half of the frame
+    # where hands go near moving film and rollers.
+    polygon: [[0.02, 0.12], [0.72, 0.12], [0.72, 0.95], [0.02, 0.95]]
+    sanctioned_limit: 11   # DEMO placeholder, was 4 (stock-detector era); median 11 / peak 13
+    color: "#9085e9"
+
+  - id: anmol_packing_5_benches
+    camera_id: anmol_packing_5
+    name: Sorting benches
+    # Left two-thirds: the hand-sorting benches. The right third is the outfeed
+    # conveyor run, which has no station on it and no reason to hold anybody.
+    polygon: [[0.02, 0.08], [0.66, 0.08], [0.66, 0.95], [0.02, 0.95]]
+    sanctioned_limit: 10   # DEMO placeholder, was 6 (stock-detector era); median 10 / peak 12
+    color: "#f59e0b"
+
+  - id: anmol_packing_7_benches
+    camera_id: anmol_packing_7
+    name: Packing benches
+    # Upper two-thirds. The bottom right of this frame is a stack of filled
+    # sacks that grows through the clip and occludes anyone behind it, so the
+    # zone stops above it rather than pretending to see through it.
+    polygon: [[0.02, 0.05], [0.98, 0.05], [0.98, 0.55], [0.02, 0.55]]
+    sanctioned_limit: 20   # DEMO placeholder, was 5 (stock-detector era); median 19 / peak 23
+    color: "#f472b6"
+
+  - id: anmol_loading_point_dock
+    camera_id: anmol_loading_point
+    name: Dock mouth
+    # The roller door and the apron in front of it, where the pallet jack comes
+    # out of the trailer. Tight on purpose: a zone this size is also a usable
+    # crop for a prompt policy later (docs/VLM_EVAL.md — the same claim scored
+    # 12/12 on a zone crop against 3/12 on the wide shot).
+    polygon: [[0.28, 0.10], [0.60, 0.10], [0.60, 0.55], [0.28, 0.55]]
+    sanctioned_limit: 3    # DEMO placeholder, was 2 (stock-detector era); median 3 / peak 4
+    color: "#34d399"
+
+  - id: anmol_broken_biscuits_line
+    camera_id: anmol_broken_biscuits
+    name: Reject line
+    # Drawn INSIDE the screen-recording inset. The shared camera picture occupies
+    # roughly x 0.053..0.942, y 0.153..0.975 of this file; everything outside
+    # that is a meeting window. A zone drawn on the full frame here would include
+    # the participant tiles, and a person on a video call is a person to the
+    # detector.
+    polygon: [[0.09, 0.22], [0.92, 0.22], [0.92, 0.90], [0.09, 0.90]]
+    sanctioned_limit: 3    # DEMO placeholder, unchanged; observed median 2 / peak 5 (already plausible)
+    color: "#60a5fa"
+
+  # ---------------------------------------------------------------------------
+  # ZONES THAT EXIST TO FRAME A QUESTION, NOT TO COUNT PEOPLE.
+  #
+  # The four below carry NO `sanctioned_limit`, deliberately: a zone without one
+  # is counted and never alerts (argus/vision/zones.py), so adding them does not
+  # give the unscoped `manpower_headcount` policy four more ways to fire. Their
+  # whole job is to be the crop a prompt policy is shown — the same lever that
+  # took one counting question from 3/12 to 12/12 (docs/VLM_EVAL.md).
+  #
+  # THEY ARE SIZED AGAINST THE DECODER, NOT THE CAMERA. The model sees the
+  # engine's 960x544 frame, not the 2560x1440 the camera sends, and `zone_crop`
+  # grows any side under 320 px and declines a zone covering 80%+ of the frame.
+  # A zone written as 0.30 x 0.25 is therefore 288 x 136 real pixels, grown to
+  # 288 x 320. Every rectangle below was checked against that arithmetic.
+  # ---------------------------------------------------------------------------
+
+  - id: anmol_broken_biscuits_trays
+    camera_id: anmol_broken_biscuits
+    name: Reject trolley and trays
+    # The reject collection point: the wheeled trolley on the left, the loose
+    # heap on the bench past the pillar, and the yellow crate at the bottom of
+    # the inset. Stops at y 0.96 because the screen-recording's player chrome
+    # starts at ~0.975 and a scrubber bar is not a biscuit tray.
+    # 0.52 x 0.44 of the frame -> 499 x 239 px decoded, grown to 499 x 320.
+    polygon: [[0.28, 0.52], [0.80, 0.52], [0.80, 0.96], [0.28, 0.96]]
+    color: "#fbbf24"
+
+  - id: anmol_packing_4_apron
+    camera_id: anmol_packing_4
+    name: Wrapper floor apron
+    # The strip of open floor to the right of and below the Autowrapper, which
+    # is the only floor this camera can actually see: everything else in the
+    # lower half of the frame is machine. This is where film offcuts and dropped
+    # packets land. The camera's own "Line No 3 Packing 4 Base" OSD is burned
+    # across the middle of it and cannot be avoided — the prompt names it so the
+    # model does not report the caption as debris.
+    # 0.58 x 0.48 -> 557 x 261 px decoded, grown to 557 x 320.
+    polygon: [[0.40, 0.52], [0.98, 0.52], [0.98, 1.00], [0.40, 1.00]]
+    color: "#a3e635"
+
+  - id: anmol_packing_3_gangway
+    camera_id: anmol_packing_3
+    name: Gangway by the sorting bench
+    # The open floor between the sorting bench and the conveyor, plus the bench
+    # itself. Including the bench is the point: the question is "is this person
+    # working or standing about", and a crop showing only empty floor gives the
+    # model nobody to compare against.
+    # 0.50 x 0.62 -> 480 x 337 px decoded, cropped as drawn.
+    polygon: [[0.28, 0.18], [0.78, 0.18], [0.78, 0.80], [0.28, 0.80]]
+    color: "#c084fc"
+
+  - id: anmol_loading_point_bay
+    camera_id: anmol_loading_point
+    name: Loading bay transfer
+    # The truck mouth and the green transfer table in front of it — where a
+    # carton is in a person's hands or waiting to be. Deliberately NOT the same
+    # rectangle as `anmol_loading_point_dock` above: the dock zone is a headcount
+    # zone and stops at y 0.55 to keep the apron out, this one starts at the top
+    # of the frame because the cartons stacked inside the trailer are what a
+    # counting prompt has to be told to ignore.
+    # 0.32 x 0.50 -> 307 x 272 px decoded, grown to 320 x 320.
+    polygon: [[0.28, 0.00], [0.60, 0.00], [0.60, 0.50], [0.28, 0.50]]
+    color: "#38bdf8"
+
+# =============================================================================
+# PROMPT POLICIES — the new detection classes, asked in English first.
+#
+# Every one is `stage: shadow` and `lifecycle: pilot`, and both halves matter:
+#
+#   stage: shadow      records an event and routes it to nobody. Nothing here
+#                      has been measured against a plant's own judgement yet,
+#                      and the first thing a new class must not do is email a
+#                      safety officer.
+#   lifecycle: pilot   NOT draft. `argus run` evaluates only pilot and
+#                      production policies (db.list_policies(active_only=True)),
+#                      so a draft policy produces no evidence, and a policy that
+#                      produces no evidence can never be promoted. Draft is for
+#                      a prompt somebody is still typing; pilot is for one that
+#                      is now to be proven. Promotion is `argus`'s own gate, not
+#                      an edit to this file.
+#
+# The measured precision of each, on frames labelled by inspection, is in
+# docs/VLM_EVAL.md under "The plant policies". Read it before promoting any of
+# them: three of the four are single-digit-percent base rate on this footage and
+# one fires on almost every frame, which is a fact about the plant and not about
+# the model.
+# =============================================================================
+
+policies:
+  # ---------------------------------------------------------------------------
+  # (1) Quality & material control — "tracking overflooded broken biscuit trays
+  #     and abnormal broken biscuit generation near the packing machine".
+  #
+  # The only camera in this corpus that sees the reject collection point. The
+  # prompt's whole job is the difference between a full container and an
+  # overflowing one, because "full" is the normal state of every tray in shot
+  # and a policy that cannot tell them apart fires continuously and is turned
+  # off in a week.
+  #
+  # THE SHIPPING MODEL CANNOT DO THIS ONE AND A BIGGER MODEL CAN. Measured
+  # 2026-08-25 on thirteen labelled zone crops. Qwen3-VL-8B: 0 false alarms and
+  # **0/10 recall**, answering false on every frame with almost the same
+  # sentence -- "broken biscuits are contained within the yellow plastic crate
+  # and the metal trolley; none are spilling over the edge" -- while a loose
+  # heap of broken biscuits several feet across sat on the floor at the right of
+  # the crop. Qwen3.8-27B-FP8, same frames and the same prompt: **precision
+  # 1.000, recall 0.800**, answering "there is a large, loose pile of broken
+  # biscuit material on the floor in the middle-right area".
+  #
+  # So the labels are confirmed by a model that was not asked to agree with
+  # them, and the 8B's failure is capability rather than wording. Whether a
+  # rewrite would rescue the 8B is untested and deliberately so: rewriting this
+  # text against the same thirteen frames that measured it is tuning on the test
+  # set. The experiment that would settle it -- ask "is there loose biscuit
+  # material on the floor or on a bench top?" as its own affirmative question,
+  # on frames nobody has scored -- is in docs/PHASE6_NOTES.md. This is also the
+  # one class in this file that argues for the 27B swap (docs/VLM_EVAL.md,
+  # "Ship or hold"), at 1.3 camera-policy pairs against a floor of three.
+  # ---------------------------------------------------------------------------
+  - id: anmol_broken_biscuit_overflow
+    kind: vlm
+    detector_key: vlm_prompt
+    label: Broken-biscuit trays overflowing
+    enabled: true
+    stage: shadow
+    lifecycle: pilot
+    severity: medium
+    # 45 s: a reject trolley fills over several minutes. Sampling it every 8 s
+    # would ask the same question five times about the same heap.
+    interval_sec: 45
+    cooldown_sec: 300
+    pilot_duration_days: 7
+    cameras:
+      - camera: anmol_broken_biscuits
+        zone: anmol_broken_biscuits_trays
+    prompt: >-
+      You are looking at a crop of a biscuit factory floor next to the packing
+      machines. Broken and rejected biscuits are collected here in wheeled
+      trolleys, open trays and plastic crates before they are re-worked.
+
+      Answer triggered=true ONLY if broken biscuit material is clearly OUT of
+      its container in this frame -- heaped above the rim of a trolley, tray or
+      crate and spilling over the edge, or lying in a loose pile on the floor
+      or on a work surface outside any container. A container that is full to
+      the rim with nothing over the edge is normal work and is triggered=false.
+      Whole biscuits travelling on a conveyor, sacks, cloth liners and the
+      camera's own date and "Camera 01" caption are never broken-biscuit
+      overflow.
+
+      In your reason, name the one container or pile you are describing and
+      where it is in the crop.
+
+  # ---------------------------------------------------------------------------
+  # (2) Quality & material control — "tracking packed biscuit and wasted
+  #     laminate dropped on the floor near the packing machine".
+  #
+  # Packing base 4 of the four available, and the choice is the camera rather
+  # than the scene: it is the one pointed at the Autowrapper, with the two
+  # laminate film reels in shot, and the one with a strip of open floor beside
+  # the machine rather than machine to the frame edge. Bases 3, 5 and 7 see more
+  # floor but no wrapper, so "waste near the packing machine" would be a
+  # different question asked in the same words.
+  #
+  # MEASURED 2026-08-25: **13/13** — precision 1.000, recall 1.000 — on ten
+  # frames of this apron plus three negatives borrowed from Packing base 7,
+  # where the packet waste is inside open sacks. It rejected all three: "the
+  # visible waste items are inside white sacks, which are considered collected
+  # waste." The "anything inside a crate, bin, sack or box is collected waste"
+  # clause is what earned that and should not be edited out.
+  # ---------------------------------------------------------------------------
+  - id: anmol_packing_floor_waste
+    kind: vlm
+    detector_key: vlm_prompt
+    label: Packed biscuits or laminate waste on the floor
+    enabled: true
+    stage: shadow
+    lifecycle: pilot
+    severity: low
+    # 90 s: waste on a floor is a state, not an event. It lies there until a
+    # sweeper comes, so the interval is set by how quickly anyone would act on
+    # it rather than by how quickly it appears.
+    interval_sec: 90
+    cooldown_sec: 900
+    pilot_duration_days: 7
+    cameras:
+      - camera: anmol_packing_4
+        zone: anmol_packing_4_apron
+    prompt: >-
+      You are looking at a crop of the floor beside a biscuit wrapping machine.
+      The machine runs a shiny transparent plastic laminate film and turns loose
+      biscuits into sealed packets.
+
+      Answer triggered=true ONLY if packaging waste is lying LOOSE ON THE FLOOR
+      TILES in this frame: a sealed or torn biscuit packet, or a piece or ball
+      of the shiny laminate film, resting on the floor. Anything inside a crate,
+      bin, sack or box is collected waste and is triggered=false. Anything on a
+      conveyor, a table, a trolley or the machine itself is triggered=false.
+      Electrical cables, orange and red hoses, tape, wet patches, tile grout
+      lines, scuff marks, shadows and the camera's own "Line No 3 Packing 4"
+      caption are not waste and must never be reported as waste.
+
+      In your reason, say what the item is and roughly where on the floor it
+      lies.
+
+  # ---------------------------------------------------------------------------
+  # (3) Productivity — "manpower conversing / idle manpower".
+  #
+  # HIGH PRECISION, AND THE WORDING IS THE WHOLE POLICY. This is the one class
+  # here whose false positive is an accusation about a named person on a named
+  # shift, so the requirement is precision over recall and the prompt is written
+  # as a conjunction with an explicit abstention clause: three conditions that
+  # must ALL hold of the SAME two or more people, a list of the postures that
+  # are work rather than idleness, and "if you are unsure about even one of
+  # them, answer false". Missing a conversation costs a plant nothing this shift.
+  # Accusing a working woman of standing about costs it the policy.
+  #
+  # Packing base 3 because its gangway is the one place in this corpus where
+  # people genuinely stand away from the benches and where the same crop also
+  # holds somebody unambiguously working — the model needs the contrast in
+  # frame, not just the accusation.
+  #
+  # MEASURED 2026-08-25 on ten labelled zone crops: **zero false alarms in the
+  # nine negatives**, and it also missed the one positive. The model quotes the
+  # three conditions back in its reasons, which is the wording doing its job.
+  # One miss is what this class is supposed to trade for one non-accusation; the
+  # missed frame is now an `audit:` entry in evals/labels.yaml because from a
+  # still it is genuinely arguable.
+  # ---------------------------------------------------------------------------
+  - id: anmol_idle_manpower
+    kind: vlm
+    detector_key: vlm_prompt
+    label: Idle or conversing manpower
+    enabled: true
+    stage: shadow
+    lifecycle: pilot
+    severity: low
+    # 30 s: a conversation worth a supervisor's attention lasts minutes. A
+    # shorter interval would catch the two-second exchanges that are how a
+    # packing line actually works.
+    interval_sec: 30
+    cooldown_sec: 600
+    pilot_duration_days: 14
+    cameras:
+      - camera: anmol_packing_3
+        zone: anmol_packing_3_gangway
+    prompt: >-
+      You are looking at a crop of a biscuit packing hall. Most people in it are
+      working -- at a bench, at a conveyor, at a machine. Some may be standing
+      idle or talking to each other instead.
+
+      This policy accuses named people of not working, so it must be wrong
+      almost never. Answer triggered=true ONLY if ALL THREE of the following are
+      true of the SAME two or more people in this single frame:
+      (1) they are standing clear of every bench, conveyor, machine and seat --
+      not leaning over one, not reaching into one, not seated at one;
+      (2) their hands are empty -- no biscuit, packet, tray, crate, tool or
+      paper;
+      (3) they are turned towards each other, face to face or shoulder to
+      shoulder, in a way that only makes sense if they are talking to each
+      other.
+
+      Everything else is triggered=false, including: one person standing alone,
+      a person walking through the frame, a person watching a machine run, a
+      supervisor pointing at work, anyone carrying or holding anything, anyone
+      partly hidden behind a person or a machine, and anyone whose hands or
+      facing you cannot actually make out at this resolution. If you are unsure
+      about even one of the three conditions, answer triggered=false.
+
+      In your reason, say how many people you are describing and what each of
+      them is doing.
+
+  # ---------------------------------------------------------------------------
+  # (4) Logistics & dispatch — "carton loading in trucks: counting and verifying
+  #     carton stacks as they are loaded into outbound dispatch vehicles".
+  #
+  # THE COUNT-AWARE WORDING, applied to a policy prompt rather than to the
+  # verification pass. docs/VLM_EVAL.md measured what happens when a model is
+  # asked whether a *situation* is real instead of whether a *number* is: it
+  # upheld claims of 16, 20, 25, 30 and 40 people on a frame holding sixteen,
+  # 15/24. One clause -- count them yourself, the number is part of the claim,
+  # state your own count -- took the same model on the same frames to 24/24.
+  # The three sentences below are that clause rewritten for cartons: count
+  # first, say the number out loud, and let the number decide the verdict.
+  #
+  # WHAT IS BEING COUNTED IS DELIBERATELY NOT "cartons loaded". A single frame
+  # cannot see a flow. What it can see is how many cartons are in transfer at
+  # this instant, and two or more on the table means the man stacking inside the
+  # trailer is falling behind the two feeding him -- which is the thing a
+  # dispatch supervisor would act on.
+  #
+  # MEASURED 2026-08-25 on ten labelled zone crops. Qwen3-VL-8B: precision
+  # 1.000, recall 0.333. Qwen3.8-27B-FP8: precision 0.667, recall 1.000 -- its
+  # counts run one high against a hand count, so it finds every backlog and
+  # invents three. The interesting half is neither number. The count clause
+  # worked on both: every one of the ten reasons begins "cartons in transfer:
+  # N". And both models then disagreed with their own number -- the 8B counted 2
+  # on four frames and fired on two of them; the 27B wrote "cartons in transfer:
+  # 2. There is one carton being held by the man in the white shirt". Stating a
+  # count is not the same as using one, at either size. What the clause bought is
+  # that the count is now in the evidence, so a reviewer sees the contradiction
+  # instead of an unexplained "no".
+  #
+  # THE COUNTED REGION WAS WIDENED ONCE, ON 2026-08-25, AND IT WAS NOT A TUNE.
+  # The first wording counted only "on the green transfer table". Labelling ten
+  # frames by hand against that wording, the green table's right edge and the
+  # roller conveyor beside it turned out to be indistinguishable at this camera
+  # angle -- a labeller could not say which surface a carton stood on, so the
+  # ground truth was a coin toss and the *measurement* was worthless whatever
+  # the model said. The fix is "outside the truck and not part of a stack",
+  # which a person can actually see. No model output had been looked at when
+  # this changed; the trigger was an unlabelable ground truth, not a bad score.
+  # ---------------------------------------------------------------------------
+  - id: anmol_carton_loading_count
+    kind: vlm
+    detector_key: vlm_prompt
+    label: Carton loading backlog at the dispatch bay
+    enabled: true
+    stage: shadow
+    lifecycle: pilot
+    severity: low
+    # 20 s: the fastest-changing subject of the four -- a carton moves every
+    # 10-20 s in this footage -- and still 2.5x the demo's 8 s.
+    interval_sec: 20
+    cooldown_sec: 180
+    pilot_duration_days: 7
+    cameras:
+      - camera: anmol_loading_point
+        zone: anmol_loading_point_bay
+    prompt: >-
+      You are looking at a crop of an outbound dispatch bay. A truck is backed
+      into the roller door and cardboard cartons are being passed into it by
+      hand across a green-topped transfer table.
+
+      FIRST COUNT the cartons that are IN TRANSFER in this single frame. A
+      carton is in transfer if it is held or supported by a person's hands, or
+      if it is standing on its own on the green transfer table or on the roller
+      conveyor beside it -- anywhere outside the truck and not part of a stack.
+      Do NOT count cartons already stacked inside the truck, cartons stacked
+      against the walls of the bay, the blue plastic pallets, or flat folded
+      cardboard sheets. State the number you counted in your reason, in exactly
+      these words: "cartons in transfer: N".
+
+      The number is part of the verdict. Answer triggered=true only if your own
+      count is TWO OR MORE. Answer triggered=false for one carton or for none,
+      even though loading is obviously under way -- one carton at a time is the
+      bay working normally, and it is two or more waiting at once that says the
+      loader inside the trailer has fallen behind the men feeding him.

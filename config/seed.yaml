@@ -1,0 +1,120 @@
+# Argus v2 seed — exported from the v1 demo database on 2026-08-09 (Phase 0).
+# The v1 demo cameras/zones/policies existed only as DB rows; this file makes them
+# reproducible. Imported by `argus seed` (Phase 1). Paths are relative to repo root.
+
+cameras:
+  - id: packing_line_demo
+    name: Packing line (demo)
+    source: ./packing_section_recording.mp4   # file source, looped to simulate RTSP
+    enabled: true
+  - id: packing_line_west_demo
+    name: Packing line west (demo)
+    source: ./packing_section_recording.mp4
+    enabled: true
+
+# SANCTIONED LIMITS ARE ILLUSTRATIVE DEMO PLACEHOLDERS, NOT SAFETY RULES — the
+# demo cameras loop packing_section_recording.mp4 and have no manning sheet. They
+# were recalibrated 2026-08-29 to the fine-tuned detector now enabled in
+# config/argus.yaml (detection.model.checkpoint + resolution: 512); the old 3 and
+# 2 were eyeballed against the stock COCO detector that under-counted this footage
+# ~2x. Each is now the zone's typical (median) occupancy the new detector reports
+# over the loop (feet-in-polygon, the engine's own count), so the zone reads at
+# its cap normally and trips on genuine crowding. Real limits come from the site.
+zones:
+  - id: packing_line_demo_packing_floor
+    camera_id: packing_line_demo
+    name: Packing floor
+    polygon: [[0.05, 0.2], [0.95, 0.2], [0.95, 0.95], [0.05, 0.95]]
+    sanctioned_limit: 10   # DEMO placeholder, was 3; observed median 9 / peak 13
+    color: "#22d3ee"
+  - id: packing_line_west_demo_conveyor_side
+    camera_id: packing_line_west_demo
+    name: Conveyor side
+    polygon: [[0.35, 0.3], [0.95, 0.3], [0.95, 0.9], [0.35, 0.9]]
+    sanctioned_limit: 8    # DEMO placeholder, was 2; observed median 7 / peak 10
+    color: "#9085e9"
+
+policies:
+  - id: manpower_headcount
+    kind: detector
+    detector_key: manpower_headcount
+    label: Manpower / headcount vs. sanctioned limit
+    enabled: true
+    stage: reviewed          # shadow | reviewed | auto_routed
+    lifecycle: production    # draft | pilot | production
+    severity: medium
+    threshold: 4.0
+    # v1 ignored this column for zone alerts and hard-coded a 60s window in
+    # its live service; v2 reads it, so the value it always behaved as is now
+    # written down. 0 would mean "alert on every sampled frame" (5/second).
+    cooldown_sec: 60
+
+  - id: hardhat_compliance
+    kind: detector
+    detector_key: hardhat_compliance
+    label: Hard-hat / PPE compliance
+    # Disabled in v2 until the Apache-licensed PPE detector lands (roadmap step 4);
+    # the v1 implementation used an AGPL Ultralytics checkpoint.
+    enabled: false
+    stage: reviewed
+    lifecycle: production
+    severity: medium
+    threshold: 0.5
+    cooldown_sec: 10
+
+  - id: emergency_exit_blocked
+    kind: vlm
+    detector_key: vlm_prompt
+    label: Emergency exit blocked
+    enabled: true            # executes once the Phase 2 VLM engine is running
+    stage: reviewed
+    lifecycle: production
+    severity: high
+    routed_to: safety_manager
+    interval_sec: 8
+    cooldown_sec: 60
+    # WHERE this policy applies. Omit the key entirely and it runs on every
+    # camera, which is what every policy did before schema v5 — so this is
+    # opt-in and nothing changes for an appliance that ignores it.
+    #
+    # It is not decoration. A prompt policy costs one VLM inference per camera
+    # per interval, measured at 4.98 s on this box with the vision engine
+    # running, which buys about three camera-policy pairs at an 8 s interval
+    # (docs/BENCHMARKS.md). Unscoped, these two policies alone are four. An
+    # emergency exit is in one place; asking about it on every camera in the
+    # plant is the arithmetic that does not close.
+    cameras:
+      - packing_line_demo
+    prompt: >-
+      Look at this factory floor camera frame. Is an emergency exit route or
+      emergency exit door blocked, obstructed, or narrowed by stacked material,
+      pallets, or equipment? Only answer triggered=true if an obstruction clearly
+      blocks or significantly narrows the path to a visible emergency exit -- not
+      for normal clutter unrelated to an exit route.
+
+  - id: phone_usage_on_line
+    kind: vlm
+    detector_key: vlm_prompt
+    label: Phone usage on the line
+    enabled: true            # executes once the Phase 2 VLM engine is running
+    stage: reviewed
+    lifecycle: production
+    severity: medium
+    routed_to: line_supervisor
+    interval_sec: 6
+    cooldown_sec: 45
+    # Scoped to a ZONE, which for a prompt policy means the model is shown that
+    # zone rather than the whole camera view. Measured, on this exact footage:
+    # the same model answering the same counting question scored 12/12 on zone
+    # crops and 3/12 on the wide shots they were cut from (docs/VLM_EVAL.md).
+    # 'Conveyor side' is 60% x 60% of the frame and is cropped; the seeded
+    # 'Packing floor' spans 89% and would be asked wide, because there is no
+    # sub-picture to find there — draw zones tightly and this pass gets better.
+    cameras:
+      - camera: packing_line_west_demo
+        zone: packing_line_west_demo_conveyor_side
+    prompt: >-
+      Look at this factory floor camera frame. Is any worker visibly using a
+      mobile phone -- holding it up, looking at it, texting, or talking on it --
+      while on the production line? Only answer triggered=true if phone use is
+      clearly visible, not just a hand near a pocket or an ambiguous gesture.

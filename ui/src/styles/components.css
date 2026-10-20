@@ -1,0 +1,607 @@
+/* Shared pieces: camera tiles, the command palette, Wall TV, the evidence
+   viewer. Everything that more than one screen puts on the page. */
+
+/* --- camera tiles ------------------------------------------------------- */
+
+.tile {
+  position: relative;
+  overflow: hidden;
+  background: #0d0f12;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  transition: border-color 0.16s ease;
+}
+.tile:hover {
+  border-color: var(--border-strong);
+}
+.tile--hot {
+  border: 2px solid var(--hot);
+}
+.tile--hot:hover {
+  border-color: var(--hot);
+}
+.tile--16x9 {
+  aspect-ratio: 16 / 9;
+}
+.tile--21x9 {
+  aspect-ratio: 21 / 9;
+}
+
+/* The design's faint scanline wash — it makes a tile read as a monitor rather
+   than a photograph, and hides nothing. */
+.tile__scan {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    rgba(255, 255, 255, 0.012) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+.tile__top {
+  position: absolute;
+  top: 8px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  pointer-events: none;
+}
+
+.tile__bottom {
+  position: absolute;
+  bottom: 8px;
+  left: 10px;
+  right: 10px;
+  display: flex;
+  align-items: center;
+  pointer-events: none;
+}
+
+.tile__id,
+.tile__name,
+.tile__meta {
+  background: var(--on-video-scrim);
+  padding: 3px 7px;
+  white-space: nowrap;
+}
+.tile__id {
+  font-family: var(--font-mono);
+  font-size: var(--fs-note);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  color: var(--on-video);
+}
+.tile__name {
+  font-size: var(--fs-note);
+  color: var(--on-video-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tile__meta {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--on-video-dim);
+  margin-left: auto;
+}
+
+.tile__occ {
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  padding: 3px 7px;
+  background: var(--on-video-scrim);
+  color: var(--on-video);
+}
+.tile__occ--over {
+  color: var(--hot);
+}
+
+/* Nothing to show at all: no live media and no still either. The one case that
+   still earns an opaque rectangle, because there is genuinely no picture. */
+.tile__signal {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 8px;
+  background: #0d0f12;
+  color: var(--on-video-dim);
+}
+
+/* No live media, but the appliance can still hand us stills.
+ *
+ * This used to be a centred bar across the middle of every tile, which on a
+ * wall of eight degraded feeds meant eight identical sentences laid over the
+ * one thing the screen is for — the footage. It is now a corner chip, tucked
+ * under the tile's own header, saying the two facts that change: that the
+ * picture is a still, and how old it is.
+ */
+.tile__degraded {
+  position: absolute;
+  top: 40px;
+  left: 10px;
+  max-width: calc(100% - 20px);
+  padding: 3px 8px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  /* The over-video tokens, not the theme's warn colour: this always sits on a
+     picture, and `--warn` inverts between light and dark while a video frame
+     does not. */
+  background: var(--on-video-scrim-strong);
+  color: var(--on-video);
+  border-left: 3px solid var(--hot);
+  pointer-events: none;
+}
+
+.tile__alertbar {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  padding: 9px 12px;
+  background: linear-gradient(transparent, rgba(8, 9, 11, 0.92));
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  pointer-events: none;
+}
+
+.tile__health {
+  margin-left: auto;
+  font-size: var(--fs-note);
+}
+
+/* --- command palette ----------------------------------------------------
+   The fastest interaction in the product, and the shipped build set it smaller
+   and quieter than the page it floats over. It is an operator tool: bigger than
+   the page, with the selected row marked by a rule rather than a 1.1:1 tint. */
+
+.palette {
+  width: 560px;
+  height: fit-content;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  overflow: hidden;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+}
+
+.palette__field {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 18px;
+  border-bottom: 1px solid var(--border-strong);
+}
+.palette__field input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: var(--fs-lede);
+  color: var(--text);
+}
+.palette__field input::placeholder {
+  color: var(--faint);
+}
+
+.palette__row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 15px;
+  font-size: var(--fs-body);
+  color: var(--text2);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+  border-left: 3px solid transparent;
+}
+.palette__row:hover {
+  background: var(--hover2);
+}
+.palette__row--active {
+  background: var(--hover);
+  border-left-color: var(--accent);
+  color: var(--text);
+  font-weight: 600;
+}
+.palette__glyph {
+  font-family: var(--font-mono);
+  font-size: var(--fs-note);
+  color: var(--dim);
+  width: 18px;
+}
+.palette__row--active .palette__glyph {
+  color: var(--accent);
+}
+.palette__foot {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 9px 15px;
+  border-top: 1px solid var(--border);
+  background: var(--panel2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  color: var(--dim);
+}
+
+/* --- wall TV ------------------------------------------------------------
+   Read from three to five metres, so nothing here is sized in the console's
+   ramp: every size is a clamp against the viewport, floored well above the
+   11px the rest of the product uses. A wall display set at desktop sizes is
+   ambient decoration. */
+
+.tv {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  flex-direction: column;
+  background: #050608;
+  color: var(--on-video);
+  font-family: var(--font-body);
+  overflow: hidden;
+}
+
+.tv__bar {
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 1.8vw, 40px);
+  padding: 14px 26px;
+  flex-shrink: 0;
+}
+
+.tv__brand {
+  font-family: var(--font-display);
+  letter-spacing: 0.14em;
+  font-size: clamp(24px, 1.9vw, 38px);
+}
+
+.tv__stat {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--font-mono);
+  font-size: clamp(16px, 1.25vw, 26px);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.tv__clock {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  font-size: clamp(22px, 1.8vw, 36px);
+  font-variant-numeric: tabular-nums;
+}
+
+/* The breach strip. A full-width rule above the grid rather than one pill in a
+   row of counters: on the shipped wall the clock outweighed the alert. */
+.tv__alert {
+  display: flex;
+  align-items: center;
+  gap: clamp(12px, 1vw, 22px);
+  background: var(--crit);
+  color: #120404;
+  padding: clamp(8px, 0.7vw, 16px) 26px;
+  flex-shrink: 0;
+}
+.tv__alerttag {
+  font-family: var(--font-mono);
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  font-size: clamp(15px, 1.15vw, 24px);
+  border: 2px solid #120404;
+  padding: 2px 10px;
+}
+.tv__alertwhat {
+  font-size: clamp(18px, 1.5vw, 32px);
+  font-weight: 600;
+}
+.tv__alertwhere {
+  margin-left: auto;
+  font-family: var(--font-mono);
+  font-size: clamp(15px, 1.15vw, 24px);
+  font-variant-numeric: tabular-nums;
+}
+
+.tv__exit {
+  font-family: var(--font-mono);
+  font-size: clamp(14px, 1vw, 20px);
+  color: var(--on-video-dim);
+  border: 1px solid #3a4149;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+.tv__exit:hover {
+  color: var(--on-video);
+  border-color: var(--on-video-dim);
+}
+
+.tv__grid {
+  flex: 1;
+  display: grid;
+  grid-auto-rows: 1fr;
+  gap: 4px;
+  padding: 0 4px 4px;
+  min-height: 0;
+}
+
+.tv__tile {
+  position: relative;
+  overflow: hidden;
+  background: #08090b;
+  border: 1px solid #181c21;
+}
+
+.tv__count {
+  position: absolute;
+  right: 14px;
+  bottom: 10px;
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  text-shadow: 0 1px 8px rgba(0, 0, 0, 0.9);
+}
+.tv__countnow {
+  font-size: clamp(34px, 3vw, 68px);
+  font-weight: 700;
+  color: var(--on-video);
+}
+.tv__countnow--over {
+  color: var(--hot);
+}
+.tv__countlimit {
+  font-size: clamp(18px, 1.4vw, 30px);
+  color: var(--on-video-dim);
+}
+
+.tv__label {
+  position: absolute;
+  bottom: 10px;
+  left: 14px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.tv__id {
+  font-size: clamp(18px, 1.45vw, 30px);
+  font-weight: 700;
+  color: var(--on-video);
+  background: var(--on-video-scrim-strong);
+  padding: 3px 9px;
+}
+.tv__zone {
+  font-size: clamp(15px, 1.15vw, 24px);
+  color: var(--on-video-dim);
+  background: var(--on-video-scrim-strong);
+  padding: 3px 9px;
+}
+
+/* The wall's own copy of the console's dark/degraded states, at wall sizes. */
+.tv .tile__signal {
+  gap: 12px;
+}
+.tv__signalglyph {
+  font-size: clamp(28px, 2.4vw, 52px);
+}
+.tv__signalword {
+  font-family: var(--font-mono);
+  font-size: clamp(16px, 1.3vw, 28px);
+  letter-spacing: var(--track-label);
+}
+.tv .tile__degraded {
+  top: 14px;
+  left: 14px;
+  font-size: clamp(15px, 1.15vw, 24px);
+  padding: 4px 10px;
+}
+
+/* --- evidence viewer ---------------------------------------------------- */
+
+.evidence {
+  width: min(1040px, 92vw);
+  max-height: 88vh;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  flex-direction: column;
+  box-shadow: 0 24px 60px rgba(0, 0, 0, 0.5);
+  overflow: hidden;
+}
+
+.evidence__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 15px 20px;
+  border-bottom: 1px solid var(--border);
+}
+
+.evidence__stage {
+  position: relative;
+  background: #08090b;
+  aspect-ratio: 16 / 9;
+  max-height: 58vh;
+  overflow: hidden;
+}
+.evidence__stage img,
+.evidence__stage video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.evidence__toggle {
+  position: absolute;
+  top: 10px;
+  left: 12px;
+  display: flex;
+  gap: 6px;
+  z-index: 2;
+}
+
+.media-toggle {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  padding: 4px 11px;
+  cursor: pointer;
+  background: var(--on-video-scrim);
+  color: var(--on-video-dim);
+}
+.media-toggle--on {
+  background: var(--scrub);
+  color: #f6f1e2;
+}
+.media-toggle:disabled {
+  cursor: not-allowed;
+  color: var(--on-video-faint);
+}
+
+.evidence__body {
+  padding: 16px 20px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  overflow-y: auto;
+}
+
+/* --- detection overlay --------------------------------------------------
+ *
+ * The marks `TrackBoxes` puts on a frame. Sizes and positions that come from
+ * the data stay inline in the component — the corner arms are a share of that
+ * particular person's shorter side, so a near worker gets long arms and a far
+ * one short — and everything here is the look. It is the same look in both
+ * themes because these marks sit on video, not on paper: a tile is dark
+ * whichever way the page is lit.
+ *
+ * Every mark is cream with a dark halo. A cream ring alone disappears on the
+ * lit end of a packing line and a dark ring alone disappears in the shadows;
+ * one inside the other survives both.
+ */
+
+.ov-layer {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* The person's whole box, always, even when all that is drawn is a 7px ring:
+   a marker is not a click target, a person is. */
+.ov-hit {
+  position: absolute;
+  pointer-events: none;
+}
+.ov-hit--live {
+  pointer-events: auto;
+  cursor: pointer;
+}
+
+/* Corner brackets, not a closed rectangle: a rectangle per person turns a
+   packing line into a lattice, and the corners carry the same extent
+   information while leaving the person's face and torso clear.
+
+   The border is drawn all the way round and then masked down to four opaque
+   squares, one pinned to each corner — the border inside a corner square *is*
+   a bracket. The squares are the mask's four layers; their edge length is the
+   arm, set inline per box because it is a share of that person's size. Where
+   masking is unsupported the border comes through whole, which is the drawing
+   this replaced and a safe place to land. */
+.ov-shape {
+  position: absolute;
+  inset: 0;
+  border: 1.5px solid var(--on-video-mark);
+  box-shadow: 0 0 0 1px var(--on-video-scrim);
+  transition: opacity 0.12s ease;
+  -webkit-mask-image:
+    linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0),
+    linear-gradient(#000 0 0);
+  -webkit-mask-position: left top, right top, left bottom, right bottom;
+  -webkit-mask-repeat: no-repeat;
+  mask-image:
+    linear-gradient(#000 0 0), linear-gradient(#000 0 0), linear-gradient(#000 0 0),
+    linear-gradient(#000 0 0);
+  mask-position: left top, right top, left bottom, right bottom;
+  mask-repeat: no-repeat;
+}
+
+/* The one box the operator is pointing at. Whole rectangle, amber wash, drawn
+   over everything else — this is the "details on demand" half of the rule, and
+   it is only ever true of one person at a time. */
+.ov-shape--active {
+  border-width: 2px;
+  border-color: var(--on-video-mark-strong);
+  background: rgba(227, 161, 60, 0.16);
+  -webkit-mask-image: none;
+  mask-image: none;
+}
+
+/* A head, in a crowd: a ring at the top-centre of the box, which is where a
+   person's head is and the point least likely to collide with a neighbour's. */
+.ov-head {
+  position: absolute;
+  left: 50%;
+  top: 0;
+  width: 7px;
+  height: 7px;
+  margin: -3.5px 0 0 -3.5px;
+  border: 1.5px solid var(--on-video-mark);
+  border-radius: 50%;
+  box-shadow:
+    0 0 0 1px var(--on-video-scrim),
+    inset 0 0 0 1px rgba(10, 12, 14, 0.35);
+  transition: opacity 0.12s ease;
+}
+
+/* Same ring, scaled up and filled for the focus view: at tile size 7px is
+   already most of the available space, but the focus view renders the same
+   frame many times larger, where a thin unfilled outline reads as an edge in
+   the scene rather than a mark on top of it. A solid fill is what makes the
+   shape pop pre-attentively against a busy frame instead of needing to be
+   searched for. */
+.ov-head--focus {
+  width: 13px;
+  height: 13px;
+  margin: -6.5px 0 0 -6.5px;
+  border-width: 2px;
+  background: var(--on-video-mark);
+}
+
+/* Everyone who is not the one being looked at, once someone is. */
+.ov-dim {
+  opacity: 0.4;
+}
+
+.ov-label {
+  position: absolute;
+  left: -1px;
+  bottom: calc(100% + 3px);
+  padding: 1px 5px;
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  line-height: 1.45;
+  white-space: nowrap;
+  color: var(--on-video);
+  background: var(--on-video-scrim-strong);
+  pointer-events: none;
+}
+/* A person standing at the top edge of the frame has no room above them. */
+.ov-label--below {
+  top: calc(100% + 3px);
+  bottom: auto;
+}

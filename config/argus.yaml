@@ -1,0 +1,786 @@
+# Argus v2 appliance configuration.
+#
+# Every value here has a working default in argus/config.py; this file is the
+# checked-in, human-editable source of truth for a deployment. Any scalar can
+# also be overridden from the environment using its dotted path, upper-cased and
+# prefixed with ARGUS_ (e.g. detection.fps -> ARGUS_DETECTION_FPS,
+# gateway.api_port -> ARGUS_GATEWAY_API_PORT). Secrets are never stored here —
+# they are named as env vars (see smtp.password_env).
+
+# Root for all runtime state: db, snapshots, clips, ring buffer, logs.
+# Relative paths resolve against the repo root.
+data_dir: data
+
+# Built SPA served at / by `argus api`. Produced by `npm run build` in ui/.
+ui_dist: ui/dist
+
+site:
+  # Shown in the UI masthead: "ARGUS · THE PLANT OBSERVER · <name>".
+  name: Argus Appliance
+  # The plant's rota. A shift runs from its start_hour until the next one
+  # begins, wrapping midnight, so three numbers describe the usual
+  # A 06-14 / B 14-22 / C 22-06. These label events in analytics and are the
+  # columns of the zone x shift heatmap, so they are deployment config rather
+  # than a constant in the UI.
+  shifts:
+    - {id: A, start_hour: 6}
+    - {id: B, start_hour: 14}
+    - {id: C, start_hour: 22}
+
+detection:
+  # Frames per second pulled from each camera for inference. The GB10 has a
+  # single NVDEC, so this is the knob that decides total camera capacity —
+  # sub-stream detection at 5 fps is the design point (see docs/REBUILD_PLAN.md).
+  fps: 5
+  # Inference resolution frames are scaled to on the way out of the decoder.
+  # 960x544 keeps 16:9-ish framing and is a multiple of 32 for detector strides.
+  width: 960
+  height: 544
+  # Decode is a ladder, best first: NVDEC with the frame kept on the device
+  # until after `fps` (10.5x the old chain at 1080p), then NVDEC with the old
+  # full-rate download, then software. Set to false to skip the probe and go
+  # straight to software. See argus/ingest/decoder.py.
+  hwaccel: true
+  # Seconds to wait for the first frame before declaring a source dead. The
+  # effective deadline is this plus start_timeout_per_camera_sec x fleet size,
+  # capped: 96 cameras is ~290 ffmpeg spawns at once, and a flat 20 s there is
+  # a deadline nobody meets.
+  start_timeout_sec: 20.0
+  start_timeout_per_camera_sec: 0.25
+  start_timeout_max_sec: 120.0
+  # Pause between starting one camera and the next, so a cold start ramps
+  # instead of stampeding. 96 cameras cost 14 s of ramp and it is paid once.
+  start_stagger_sec: 0.15
+  # Reconnect backoff for a lost source: starts here, doubles, capped.
+  reconnect_backoff_sec: 2.0
+  reconnect_backoff_max_sec: 30.0
+  # A camera starved of its first frame on hardware decode drops to software
+  # and tries hardware again after this long, doubling each repeat, capped.
+  # Never permanent: "the box was busy" and "this build has no NVDEC" are
+  # different facts, and the second is known before any process is spawned.
+  hwaccel_retry_sec: 120.0
+  hwaccel_retry_max_sec: 3600.0
+  # Seconds without a frame before a camera is reported unhealthy.
+  stall_timeout_sec: 10.0
+  # Threads for post-detection analytics (tracking, zones, occupancy, events).
+  # 0 runs them on the vision thread, which is what ships: measured on this box
+  # a pool is 9% SLOWER end to end, because ~130 Python threads already contend
+  # for the GIL and the tracker holds it throughout. The pool is kept, tested
+  # and off — see docs/BENCHMARKS.md "the pool that did not pay".
+  analytics_workers: 0
+  analytics_queue_depth: 3
+
+  model:
+    # RF-DETR (Apache-2.0) replaces v1's AGPL YOLOv8n. Measured on this GB10:
+    # torch FP16 traced runs 2.85 ms/frame at batch 1 and 1.29 ms/frame at
+    # batch 8. TensorRT 11.2 (the only CUDA-13 aarch64 build) has no FP16
+    # builder flag and measured slower; see docs/BENCHMARKS.md.
+    variant: nano          # nano | small | medium | base | large
+    precision: fp16        # fp16 | fp32
+    device: auto           # auto | cuda | cpu | cuda:N
+    trace: true            # cache a torch.jit trace per batch size
+    threshold: 0.5         # the detector's own operating point
+    # Boxes between this and `threshold` reach the tracker, which lets them
+    # CONTINUE an existing track and never start one. 0 disables. See `tracker`.
+    track_floor: 0.15
+    nms_iou: 0.8           # duplicate-box guard (1.0 disables it)
+    # 512, not the nano's native 384. Measured 2026-08-29 on this plant's own
+    # frames (engine path, docs/DETECTOR_EVAL.md 2026-08-29 addendum): raising
+    # the detector's input 384->512 lifts the fine-tune's val recall(IoU.5)
+    # 72.0%->80.6% and AP@50 0.782->0.865. 640 adds nothing (val recall +0.5pp,
+    # a single box) and drops AP@50 on both splits, so 512 is the measured peak,
+    # not an assumption that bigger is better. Cost is ~2.2 ms/frame batched,
+    # leaving ~80 fps/camera of headroom vs the 5 fps/camera design point.
+    resolution: 512        # was 0 (=native 384); see docs/DETECTOR_EVAL.md
+    max_batch: 8           # cameras coalesced into one forward pass
+    # Weights fine-tuned on THIS site's labelled frames, by
+    # scripts/train_detector.py. Empty is the default and is what every
+    # appliance ships with: the stock COCO checkpoint above.
+    #
+    # Do not set this because a fine-tune exists. Set it only after
+    #   uv run argus detector-eval --checkpoint <path>
+    # has shown a gain on this site's own footage with no scene going
+    # backwards — docs/DETECTOR_EVAL.md says what "a gain" means and why the
+    # per-scene column is the one that matters. Weights trained on one plant's
+    # cameras are a liability on another's.
+    #
+    # The file is loaded only alongside the provenance.json its training run
+    # wrote beside it: that sidecar is what records which output slot is a
+    # person, and a checkpoint that cannot say stops `argus run` at start-up
+    # rather than counting nobody. Relative paths resolve against the repo root.
+    # ENABLED 2026-08-29 after `argus detector-eval` on this plant's val split
+    # (docs/DETECTOR_EVAL.md 2026-08-29): the fine-tune vs the stock COCO weights
+    # above, both on the shipped engine path at 512 px, no scene going backwards:
+    #   val recall(IoU.5) 41.7% -> 80.6%   AP@50 0.595 -> 0.865
+    #   val presence AP(centre) 0.800 -> 0.953
+    #   24-48px band (the distant workers the console was under-counting) 4%->77%
+    # It buys recall with precision (val 92.4% -> 87.0%): the right trade here,
+    # where the worse failure is a zone reading under-limit while a real worker
+    # stands in it. Loaded only beside its provenance.json and hash-verified
+    # (sha256 616e62bb...) at start-up. Stock COCO stays the default for any
+    # site without its own labelled frames — these weights are Anmol's alone.
+    checkpoint: "models/finetuned/2026-08-24-long/checkpoint_best_total.pth"
+
+  tracker:
+    # ByteTrack via supervision (MIT). Expressed in seconds because detection
+    # runs at 5 fps, not the 30 fps supervision assumes.
+    activation_threshold: 0.3
+    match_threshold: 0.8
+    lost_track_sec: 2.0
+    # 3 frames = 0.6 s before a track counts as a person. At 1, a single-frame
+    # false box was a head in a headcount. Together with `model.track_floor`
+    # this took the 3 s-median count within +/-2 of a hand count from 46.6% to
+    # 93.0% of frames on Packing 7 and 89.5% to 100% on Packing 4 (two 60 s
+    # clips, same weights — docs/DETECTION_V2.md).
+    min_consecutive_frames: 3
+
+  continuity:
+    # Ongoing conditions for the DETECTOR: one event per breach, not per minute.
+    #
+    # The counterpart of `vlm.continuity` below, and it exists because the claim
+    # that section used to make about this one was wrong. Measured on this box
+    # on 2026-09-19: `manpower_headcount` had written 10,958 events in 24 hours
+    # — ~1,400 per camera per day, one a minute around the clock — and 112,151
+    # in total, against a review queue of 114,462 unreviewed rows. 8 cameras x
+    # 1,440 minutes/day is 11.5k, which is the shape of a 60 s cooldown re-firing
+    # for as long as a zone stays busy. The debounce was rate-limiting a question
+    # about identity, exactly as the VLM's cooldown was before migration 7.
+    #
+    # With this on, an over-limit zone opens ONE event when the breach is
+    # established and that row is extended in place while it lasts — newer
+    # last_seen_ts, one more observation, a refreshed snapshot at the same path,
+    # and a headline that says "12 people · limit 8 · peak 14 · 6 min". No schema
+    # change: these are migration 7's columns, and the console already draws such
+    # rows as "ongoing since · N observations".
+    #
+    # Set false for the pre-change behaviour, one row per cooldown.
+    enabled: true
+    # Seconds of per-frame counts the working count is the MEDIAN of (~15 samples
+    # at 5 fps). Measured against hand labels on this plant's own frames on
+    # 2026-09-19, ~13% of the detector's boxes are false positives and ~19% of
+    # the people present are missed, so a single frame's count flickers either
+    # side of the limit and one spurious box was enough to open an alert.
+    window_sec: 3.0
+    # Seconds the smoothed count must be continuously OVER the limit to open.
+    sustain_sec: 5.0
+    # Seconds it must be continuously AT OR UNDER the limit to close. Longer
+    # than sustain_sec on purpose: this is the hysteresis, and it is what makes
+    # a count hovering at the limit one condition instead of a dozen.
+    clear_sec: 10.0
+    # How far under its limit an OPEN zone must fall before it starts to clear:
+    # a fraction of the limit, never less than one person (limit 20 releases at
+    # 18, limit 8 at 7). clear_sec cannot help a count that sits ON the limit —
+    # measured live 2026-09-20, packing_7_benches (limit 20, median 21) closed
+    # and reopened once a minute: 10 conditions in 10 minutes. With this, 1.
+    # 0 restores the single threshold.
+    release_margin: 0.10
+    # How often an open condition's row is rewritten in place. Not every frame
+    # (five UPDATEs a second per zone for a number that has not changed) and not
+    # never (last_seen_ts is what "ongoing since" is measured from). A rise in
+    # the peak is written immediately whatever this says.
+    update_sec: 15.0
+    # Seconds an open detector condition may go unobserved before it is closed
+    # as stale — the engine stopped, the camera dropped, the zone was deleted.
+    # Also the window in which a restarted engine adopts the row it left open
+    # rather than filing a duplicate. Must exceed update_sec, or a healthy
+    # condition is closed between its own updates; the loader refuses it if not.
+    stale_after_sec: 120.0
+
+evidence:
+  # Every event carries an annotated snapshot and the video around it.
+  enabled: true
+  clip_pad_sec: 8.0           # seconds of context either side of an event
+  ring_segment_sec: 2.0       # ring buffer segment length
+  ring_retention_sec: 300.0   # rolling footage kept per camera (~5 min)
+  # 'auto' stream-copies H.264/H.265 sources (no CPU, no NVENC) and only
+  # re-encodes when the source codec cannot be remuxed into mp4.
+  ring_mode: auto             # auto | copy | encode
+  # Recording and REVIEWING do not want the same codec, and this is the line
+  # that says so. The ring above happily stream-copies H.265, because the ring
+  # is only ever read by ffmpeg. An evidence clip is read by a <video> element
+  # in somebody's browser, and H.265 there is CONDITIONAL: Chrome and Edge
+  # decode it only where the OS hands them a hardware decoder, so one file opens
+  # on a control-room PC with a recent GPU and fails on a thin client, a VM or a
+  # remote-desktop session. H.264 has no such condition anywhere.
+  #
+  # 'auto' re-encodes a clip to H.264 on NVENC when, and only when, the ring
+  # holds something that is not universally playable. An H.264 camera is
+  # untouched and still costs nothing.
+  #
+  # 'never' restores the pre-Phase-6 always-copy behaviour. Reasonable for a
+  # site that knows what its reviewers run, and it is 3x smaller per clip.
+  #
+  # MEASURED on this box (docs/PRODUCTION_READINESS.md), including the part that
+  # did NOT go as predicted: the stream-copied H.265 clip played fine in the
+  # Firefox on this appliance. What is proven is the portability hazard, not an
+  # outage — read that section before deciding this is free.
+  clip_transcode: auto        # auto | never
+  snapshot_quality: 85
+  # One occupancy row per zone per window, holding that window's peak.
+  occupancy_flush_sec: 10.0
+  # Applied when a policy does not set its own cooldown_sec. A policy that
+  # explicitly sets 0 is honoured and alerts on every sampled frame.
+  default_cooldown_sec: 60.0
+
+rollout:
+  # The staged rollout's gate: what a policy must prove before it may email a
+  # safety manager with no human in the loop.
+  #
+  # These numbers used to live only in the console's JavaScript, which meant the
+  # gate was a disabled button rather than a rule — `curl` promoted a policy
+  # with zero verdicts. `POST /api/policies/{id}/promote` enforces them now, and
+  # the console reads them from /api/config so there is one copy of the bar.
+  #
+  # 200 is not arbitrary. At 195 confirmed out of 200 the 95% lower bound on
+  # precision is still about 94%, so a smaller sample cannot tell "precise" from
+  # "lucky". Lower it for a site whose violations are rare and understand what
+  # is being traded.
+  min_precision: 0.95
+  min_reviews: 200
+  # Whether an operator may promote anyway. ON, because a site whose validation
+  # happened somewhere else must be able to say so, and an appliance that
+  # refuses forever gets worked around with sqlite3 — which is worse, because it
+  # leaves no trace. An override is refused unless it names a reason, and the
+  # reason is stored on the policy row (`policies.promotion_note`).
+  allow_override: true
+
+retention:
+  # Housekeeping runs on a thread inside `argus run` (and on demand via
+  # `argus retention`). The v1 demo loop produced 186 GB of unbounded
+  # recordings — this is the fix, and it is not optional equipment.
+  enabled: true
+  # The FALLBACK windows, used for evidence no event row claims (an orphan a
+  # killed ffmpeg left behind) and for every tier `evidence:` below leaves unset.
+  clips_days: 14
+  snapshots_days: 30
+  events_days: 180
+  occupancy_days: 7
+
+  # --- per-stage evidence windows -------------------------------------------
+  #
+  # MEASURED ON THIS BOX, 2026-08-29: data/clips reached 578 GB in 2.5 days.
+  # Six file cameras loop the same plant footage, so a zone violation never
+  # clears; 47 881 events were cut, each with a 19.4 MB H.264 evidence clip —
+  # 3.1x the pre-Phase-6 stream-copied size, the re-costing docs/PHASE6_NOTES.md
+  # flagged and did not do. Growth was ~250 GB/day against a flat 14-day window
+  # and a disk guard that could not have engaged before 3.5 TB.
+  #
+  # A shorter flat window would have fixed the day and thrown away the evidence
+  # for every confirmed incident alongside the noise, because a flat window
+  # cannot tell them apart. These can: of those 47 881 events, 164 have a human
+  # verdict and the rest are unreviewed repeats.
+  #
+  # The window is chosen by what the event turned out to be — its review verdict
+  # if a human gave one, otherwise its stage.
+  evidence:
+    # Nobody was told, nobody is queued to look (the triage queue filters
+    # `stage != 'shadow'`), and on this box this is 97% of everything. One day
+    # is enough to watch a trial policy's output the morning after.
+    shadow_days: 1
+    # In the triage queue, awaiting a verdict. Two days is the honest SLA for a
+    # plant that reviews on a weekday morning; a site that reviews weekly should
+    # say 8 here, not leave it and hope.
+    reviewed_days: 2
+    # Alerts that emailed a safety manager with no human in the loop. Unset =
+    # inherit reviewed_days; named here so a site that promotes its policies
+    # sees the line rather than discovering the inheritance.
+    auto_routed_days: 2
+    # A human said this really happened. This is the evidence anybody will ever
+    # actually ask for, and 30 days of it on this box is under 3 GB.
+    confirmed_days: 30
+    # NOT the shortest, deliberately. A confirmed false positive is a labelled
+    # negative, and labelled negatives are the one eval and training input a
+    # deployment produces for free — argus/eval/dataset.py reads exactly these
+    # snapshots to score the VLM verifier. 80 events, ~1.5 GB.
+    false_positive_days: 30
+
+  # --- the hard budget ------------------------------------------------------
+  #
+  # The bound that does not depend on getting the ages right. A site whose event
+  # rate is 20x what anyone predicted is a volume problem, and only a volume
+  # ceiling answers it: when a directory is over budget the sweep evicts
+  # least-valuable-first (shadow before reviewed before confirmed, oldest first
+  # within a tier), honouring min_keep_hours, and logs what it took and why.
+  #
+  # 100 GB of clips is ~5 200 clips at this box's measured 19.4 MB, which at the
+  # windows above is roughly five days of a demo loop or many months of a real
+  # plant. 20 GB of snapshots is ~130 000 stills at 154 KB. Together that is 3%
+  # of this appliance's 3.7 TB, leaving the rest for the ring, the index and the
+  # customer's own footage.
+  #
+  # Two numbers rather than one: a clip is 126x a snapshot, and a pooled budget
+  # would let clips crowd out the stills that the triage list and the search
+  # results actually render. See argus/config.py:RetentionConfig.
+  #
+  # 0 (or omitting the key) means no budget — ages and the disk guard only.
+  max_clips_gb: 100
+  max_snapshots_gb: 20
+  # Semantic-index sample thumbnails and their vectors. The shortest window on
+  # the appliance, because it is the one thing here that writes on a timer
+  # rather than on an event. Measured, not estimated: 8 640 samples per
+  # camera-day at the default 10 s interval is 130 MB of thumbnails (15.1 KB
+  # each) and 29 MB of vectors (3.33 KB each), so 48 cameras x 14 days is about
+  # 107 GB — 3% of this appliance's disk. Event frames are not swept by this —
+  # they are pruned when their event is. See argus/config.py.
+  index_days: 14
+  # How often the sweep runs. The first one happens at startup, so a box that
+  # was powered off for a month does not wait another interval to notice.
+  interval_hours: 6
+  # Fullness of the filesystem holding data_dir that triggers an early
+  # oldest-first reclaim. Age windows alone are no defence against a shift that
+  # simply produces more video than usual.
+  max_disk_percent: 85
+  # Floor for that emergency pass: evidence younger than this is never deleted,
+  # so an alert raised minutes ago always still has its clip.
+  min_keep_hours: 6
+
+backup:
+  # Nightly SQLite snapshots, taken on the same housekeeping thread as
+  # retention. Retention bounds what the appliance keeps; this is what happens
+  # when the thing it kept goes bad — a mistaken bulk delete, a half-applied
+  # migration, a corrupted page.
+  #
+  # Both databases are copied with SQLite's ONLINE BACKUP API, not `cp`: the
+  # vision engine is writing to argus.sqlite3 in WAL mode while this runs, and
+  # a plain file copy of that is a database that is *sometimes* fine. Measured
+  # on this box: 19.2 MB + 52.6 MB copied and sha256-verified in 0.2 s.
+  enabled: true
+  # Hours between scheduled backups, measured from the last one rather than
+  # against a wall clock. A box powered down through its 03:00 window silently
+  # skips a night; an age that is owed cannot be skipped, it is simply paid at
+  # the next housekeeping tick.
+  interval_hours: 24
+  # Complete backups kept. A week is roughly how long an unattended appliance
+  # takes to notice that somebody deleted the wrong camera.
+  keep: 7
+  # Empty = data_dir/backups. THIS DEFAULT DOES NOT SURVIVE THE DISK FAILING —
+  # it defends against mistakes and corruption, which is what actually happens
+  # to appliances, and against nothing else. Point it at a mounted share (NFS,
+  # a USB disk) and it defends against both; `argus doctor` warns while it is
+  # on the same filesystem as the data it protects.
+  directory: ""
+  # Copy the vector index too. It is NOT derived data: `argus index backfill`
+  # can rebuild vectors for event snapshots, but the periodic samples that make
+  # an ordinary minute searchable exist nowhere else. It is also the file that
+  # grows with the fleet — set false on a storage-constrained site and accept
+  # that a restore returns evidence but not searchable history.
+  include_index: true
+  # Refuse to start a backup above this fullness: a backup that fills the disk
+  # takes the appliance down to protect data that was not yet at risk.
+  max_disk_percent: 90
+
+logs:
+  # Rotation for the only two logs that are NOT on journald: the output of the
+  # two child processes Argus supervises, go2rtc and the vLLM server. `argus
+  # run` and `argus api` write to stdout, which under `argus install-services`
+  # is journald — already rotated by systemd, and a second policy here would
+  # give one appliance two of them.
+  #
+  # Copy-and-truncate, not rename: those children hold their log open in append
+  # mode for the life of the process, so a renamed file would keep receiving
+  # every line while the "current" log stayed empty forever.
+  rotate: true
+  # Measured on this box: vlm-server.log reached 14.7 MB in a day of use.
+  max_mb: 32
+  keep: 3
+
+smtp:
+  host: localhost
+  port: 587
+  username: ""
+  from_address: "Argus <argus@localhost>"
+  starttls: true
+  # Name of the environment variable holding the SMTP password. The password
+  # itself is never written to this file.
+  password_env: ARGUS_SMTP_PASSWORD
+  # policy.routed_to role -> recipients. Roles are referenced by seed.yaml.
+  recipients:
+    safety_manager:
+      - safety@plant.example.com
+    line_supervisor:
+      - supervisor@plant.example.com
+    plant_head:
+      - plant.head@plant.example.com
+
+gateway:
+  # go2rtc: RTSP/ONVIF ingest, WebRTC out to the UI. Vendored by
+  # scripts/fetch_gateway.sh; binary path is relative to the repo root.
+  binary: bin/go2rtc
+  api_port: 1984      # HTTP API + WebRTC signalling
+  rtsp_port: 8554     # internal RTSP the decoders read from
+  webrtc_port: 8555   # WebRTC ICE (TCP + UDP)
+  # LOOPBACK, and this is the Phase-5 lock. go2rtc's HTTP API is a live snapshot
+  # of every camera, the stream table, the WebRTC signalling and its own
+  # unauthenticated admin UI — and it had none of the API's credentials on it.
+  # The console now reaches signalling and poster stills through
+  # /api/gateway/* on `argus api`, which carries a session cookie and a role
+  # check. Widening this back to 0.0.0.0 re-opens exactly that hole; the field
+  # exists so it is a decision somebody writes down, not a default.
+  api_host: "127.0.0.1"
+  # RTSP stays on the network, because a site re-using these streams in its
+  # existing VMS or NVR is a real deployment. Set 127.0.0.1 if nothing does.
+  # NOTE: the WebRTC *media* port above cannot be locked this way — ICE connects
+  # the browser to it directly. docs/SECURITY.md, "Residual".
+  listen_host: "0.0.0.0"
+  # Extra ICE candidates go2rtc advertises to a browser, "host:port" each,
+  # ALONGSIDE the interface addresses it discovers for itself. A LAN-only site
+  # leaves this EMPTY: the addresses go2rtc finds are the ones the control room
+  # reaches it on, and naming them again buys nothing.
+  #
+  # It earns its keep when a viewer is not on that LAN. Signalling for a remote
+  # operator already works — it rides the authenticated relay on the API port,
+  # over whatever tunnel got them here — but the candidates in that exchange are
+  # only what go2rtc could enumerate locally. If this appliance's remote address
+  # is not one of its own interfaces (a port-forwarded public IP, a VPN that
+  # terminates on another host) the browser is offered nothing it can route to:
+  # the console loads, the camera list is right, and every tile stays black with
+  # nothing in any log to say why.
+  #
+  # THIS SITE'S ENTRY is its Tailscale address — what a tailnet peer resolves
+  # this appliance to. Measured on this box, honestly: tailscale0 is a real
+  # interface here, so go2rtc already gathers 100.113.208.36 without this line.
+  # Naming it pins the address rather than trusting interface enumeration and
+  # gets it offered first, ahead of the LAN one that no tailnet peer can use.
+  # A LAN-ONLY SITE SHOULD DELETE THIS and leave the list empty. Any site whose
+  # remote address is a port-forward or a VPN endpoint must set it — that
+  # address is not discoverable from this box at all.
+  #
+  # The port must be the webrtc_port above, and whatever network carries the
+  # viewer has to carry it (UDP for the direct path, TCP as ICE's fallback).
+  # Advertising an address is not opening one: :8555 is already bound on every
+  # interface. See docs/SECURITY.md, "Residual".
+  webrtc_candidates:
+    - "100.113.208.36:8555"   # this appliance's tailnet address (`tailscale ip -4`)
+  log_level: info
+  restart_backoff_sec: 3.0
+
+vlm:
+  # The VLM policy engine (Phase 2): plain-English safety policies judged by a
+  # vision model running on this box. `kind: vlm` rows in the policies table
+  # (see config/seed.yaml) are the policy definitions; this section is how they
+  # are served. Set enabled: false and the engine behaves exactly as Phase 1.
+  enabled: true
+  # Served model, and the ONLY line that has to change to serve a different one:
+  # fetch the weights with `scripts/fetch_vlm.sh <id>`, edit this, restart
+  # `argus vlm`. Nothing else in this file moves — Qwen3.8-27B-FP8 was trialled
+  # at the gpu_memory_utilization below without touching it.
+  #
+  # The rebuild plan names NVIDIA Cosmos-Reason2-8B, whose HF repo is gated; this
+  # is its Apache-2.0 base model — same qwen3_vl architecture and the same code
+  # path, so switching is a one-line change once the licence is accepted.
+  #
+  # Two alternatives are measured and both are **held, not shipped**:
+  #
+  #   Qwen/Qwen3.8-27B-FP8         counts, but 8.81 s/eval against 4.98 — which
+  #                                leaves 1.3 camera-policy pairs where Phase 2
+  #                                quotes three. It is the model to pick if a
+  #                                site runs ONE prompt policy and wants it
+  #                                right; see docs/VLM_EVAL.md "Ship or hold".
+  #   Qwen/Qwen3-VL-8B-Instruct-FP8  2.72 s/eval, and measurably worse at the
+  #                                one thing the verifier is for. Also needs
+  #                                VLLM_USE_DEEP_GEMM=0 to load here, so it is
+  #                                not a one-line swap. docs/PHASE2_NOTES.md §2.
+  #
+  # scripts/fetch_vlm.sh has which quantisation was chosen for each and why.
+  model: Qwen/Qwen3.8-27B-FP8
+  # Empty = derive from the server section below (the single-box default).
+  base_url: ""
+  api_key: argus-local
+  timeout_sec: 90
+  # Concurrent in-flight inferences. The GB10 serves this model and the RF-DETR
+  # detector out of the same SMs; a backlog here buys VLM throughput with
+  # detection latency, which is the wrong trade on this box.
+  max_concurrency: 2
+  # Frames are downscaled before being sent — a VLM's image token cost grows
+  # with area, and the decoder only produces 960px anyway.
+  max_image_width: 1024
+  jpeg_quality: 85
+  # Applied to a vlm policy whose own interval_sec is unset.
+  default_interval_sec: 8
+  temperature: 0.0
+  max_tokens: 320
+  # A `triggered` answer below this confidence does not raise an event.
+  min_confidence: 0.5
+  retry_backoff_sec: 5
+  retry_backoff_max_sec: 120
+
+  continuity:
+    # Ongoing conditions: one row per problem, however long it lasts.
+    #
+    # A prompt policy asks about a STATE, and a state persists. Until schema
+    # migration 7 the only thing between "there is loose laminate on the wrapper
+    # apron" and a new event row was `cooldown_sec`, so a condition that was
+    # true all night wrote one row per cooldown. Measured on this box on
+    # 2026-08-26: `anmol_packing_floor_waste` held **140** events about one
+    # offcut on one apron, 40 of them overnight at its 900 s cooldown. The feed
+    # was unreadable and the analytics counted one mess as forty incidents.
+    #
+    # With this on, a triggered verdict that continues the condition already
+    # open for its (policy, camera, zone) extends that row — a newer
+    # `last_seen_ts`, one more `observations`, the newest sentence and a
+    # refreshed snapshot at the same path — and inserts nothing. The cooldown
+    # still decides when a NEW condition may open; it no longer decides how
+    # often the same one is re-reported.
+    #
+    # This block governs VLM-origin events only. It used to say detector-origin
+    # events were untouched because "their debounce already does this for counts
+    # in a polygon", and that was wrong: measured on this box on 2026-09-19,
+    # manpower_headcount had written 10,958 events in 24 hours and 112,151 in
+    # total, because the debounce was re-firing a new row every cooldown for as
+    # long as a zone stayed busy. The detector's own version of this feature is
+    # `detection.continuity` above, and it is on.
+    #
+    # Set false for the pre-migration-7 behaviour, one row per cooldown. The
+    # flag exists so the new behaviour is a decision rather than something that
+    # happened to a site on upgrade.
+    enabled: true
+    # Grounding-box agreement, for a policy with NO zone.
+    #
+    # Applied only to unscoped policies, and that is a measurement rather than a
+    # shortcut. A zone-scoped policy is already anchored — the model is shown
+    # the zone crop and the question is about the zone — and over this
+    # appliance's own 139 consecutive laminate observations the MEDIAN IoU
+    # between one sighting and the next is 0.000, with box centres a median 0.11
+    # of the frame apart against a box 0.077 wide. Comparing boxes inside a zone
+    # would have split one ongoing mess into roughly a hundred rows. An unscoped
+    # policy has no polygon to stand in, so its box has to, and this is the bar.
+    min_iou: 0.1
+    # Seconds without an observation before a condition is closed as stale.
+    #
+    # Asymmetric with the "cleared" close on purpose: an untriggered verdict is
+    # positive evidence the condition ended and closes it at once, whereas
+    # silence is only evidence that nobody looked — a camera dropped, the model
+    # went degraded, an operator edited the policy. Closing early on silence
+    # writes a span claiming the problem ended at a moment nobody observed. 900 s
+    # is ten missed samples of the slowest plant policy shipped (90 s).
+    stale_after_sec: 900
+
+  verify:
+    # The alert-fatigue reducer: before an auto_routed detector event is
+    # emailed, the VLM sees the annotated snapshot — cropped to the zone the
+    # claim is about, where the zone is a genuine sub-picture — and may veto it.
+    # Vetoed events are NOT deleted: they stay in the database marked
+    # suppressed, visible for review and counted in the accuracy stats.
+    #
+    # WHAT AN OPERATOR IS DECIDING, in the numbers that were measured on this
+    # box against Qwen3-VL-8B-Instruct (docs/VLM_EVAL.md, `argus eval`, 68
+    # labelled headcount claims per wording, 2026-08-15):
+    #
+    #   The verifier used to be unable to audit a count, which is the only kind
+    #   of claim the shipped detector makes. Two fixes landed on 2026-08-15 and
+    #   both are in the numbers below:
+    #
+    #     the count clause in the prompt   over-claims vetoed 15/24 -> 24/24,
+    #                                      counting precision 0.214 -> 0.333,
+    #                                      F1 0.353 -> 0.500, and truthful
+    #                                      claims still upheld 6/6
+    #     the zone crop before verifying   the same model, same prompt, on a
+    #                                      zone crop vs the wide shot it came
+    #                                      from: 12/12 vs 3/12
+    #
+    #   What it still cannot do: catch an UNDER-count (2/12 before, 0/12 after).
+    #   A claim of "2 people" on a zone holding six is upheld, which is
+    #   operationally harmless — the zone is over its limit either way — but it
+    #   means this pass is a filter on exaggeration, not an audit of the number.
+    #   Only the 27B catches those (12/12), at 8.81 s an evaluation.
+    #
+    #   What it costs: one extra inference per auto_routed detector event —
+    #   5.6 s on the shipped model, up from 4.3 s, because the count clause
+    #   makes the model state its own count and decode is where the seconds go.
+    #   It comes out of the same GPU the detector runs on. And there is a real
+    #   risk in the other direction: a wrong veto is an alert nobody receives.
+    #   That is why min_confidence below is 0.6, why an unreachable model lets
+    #   the alert through, and why a vetoed event is kept and reviewable.
+    #
+    #   Where the crop does NOT happen: a zone covering 80% or more of the frame
+    #   is left alone (there is no sub-picture to find). The seeded 'Packing
+    #   floor' zone is one of those; 'Conveyor side' is cropped. Draw zones
+    #   tightly and this pass gets much better — that is the 12/12 vs 3/12.
+    #
+    # Off by default anyway: it puts a second model between a detected violation
+    # and the person who needs to know, which a site should opt into on the
+    # evidence above rather than inherit on upgrade. Re-run `argus eval` after
+    # changing `model:` — these numbers are a property of the model, and the
+    # 27B measured 68/68 on the same slice.
+    enabled: false
+    stages: auto_routed        # comma-separated; the only stage that mails anybody
+    # A veto needs at least this much confidence. Below it the alert goes out:
+    # the failure mode we accept is a false alarm, never a missed one.
+    min_confidence: 0.6
+    timeout_sec: 20
+
+  server:
+    # `argus vlm start` runs vLLM from its OWN virtualenv, built by
+    # scripts/setup_vlm_server.sh. It is not in the argus dependency tree —
+    # Argus only ever speaks HTTP to an OpenAI-compatible endpoint, so this is
+    # swappable (an NGC container, another host) without touching any code.
+    venv: .venv-vlm
+    # Where scripts/fetch_vlm.sh put the weights. Outside data_dir on purpose:
+    # a 17 GB checkpoint is an install artefact, not appliance state, and
+    # retention must not sweep it.
+    models_dir: models
+    host: 127.0.0.1
+    port: 8000
+    # Fraction of the unified 128 GB vLLM may claim. GB10 has no separate VRAM,
+    # so this comes out of the same pool as the detector and the decoders.
+    gpu_memory_utilization: 0.30
+    max_model_len: 8192
+    max_num_seqs: 4
+    startup_timeout_sec: 900
+    extra_args: ""
+
+index:
+  # The semantic index (Phase 3): SigLIP 2 embeddings of the frames the engine
+  # already decoded, written to a local sqlite-vec store, searched in plain
+  # English at /api/search and on the console's Search screen.
+  #
+  # `enabled` gates the WRITER inside `argus run`. Search itself keeps working
+  # against whatever is already indexed — turning indexing off to reclaim GPU
+  # should not also delete the plant's searchable history.
+  enabled: true
+  # Resolved under models/ by scripts/fetch_siglip.sh; never fetched at runtime.
+  # The literal string "fake" selects the deterministic stub in
+  # argus/index/embedder.py, which exercises the whole path with no weights.
+  #
+  # Measured on this GB10 (docs/PHASE3_NOTES.md): base is 3.35 ms/frame at
+  # batch 8 and so400m-patch14-384 is 30.0 ms/frame (16.3 at its own best batch
+  # of 4), for no better retrieval on the footage available here. Changing this
+  # needs `argus index backfill --reset` — vectors from two models are not
+  # comparable and the store refuses to mix them.
+  model: google/siglip2-base-patch16-384
+  device: auto            # auto | cuda | cpu | cuda:N — where frames are embedded
+  precision: fp16         # fp16 | fp32 (fp32 is forced on CPU)
+  # Seconds between periodic samples of each camera's live frame. These reuse
+  # frames the vision loop already decoded — there is NO second decode path —
+  # so the cost is the embedding plus one ~9 KB thumbnail. Raising this is the
+  # first knob to reach for on a storage-constrained site; see retention.index_days.
+  sample_interval_sec: 10
+  # Frames coalesced into one forward pass. Measured, and the curve is NOT
+  # monotonic: base runs 3.35 ms/frame at 8 and 5.32 at 16, so raising this
+  # makes indexing slower rather than faster. Re-measure before changing it.
+  batch_size: 8
+  queue_depth: 64         # bounded: falling behind drops samples, never blocks decode
+  batch_wait_sec: 0.5     # longest a partial batch waits before being embedded
+  thumb_width: 320        # search-result thumbnails (not evidence — those are snapshots)
+  thumb_quality: 70
+  # Where a *query* is embedded. 'cpu' by default and deliberately: measured at
+  # 68 ms per query on the Grace cores against 2.5 ms on the GPU, which buys a
+  # search that costs the vision engine and vLLM nothing at all, for 1.0 GB of
+  # RSS in the API process and a latency nobody can see behind a page load.
+  query_device: cpu
+  # Similarity floor below which a result is not returned. SigLIP cosine scores
+  # are small absolute numbers — a good match on this footage is 0.10-0.17 —
+  # so this exists to drop noise, not to rank.
+  min_score: 0.02
+  default_limit: 24
+
+api:
+  # The JSON API (`argus api`). Interactive docs at /api/docs, health at
+  # /api/health. Every route except the /api/health liveness probe and the login
+  # endpoint requires a session — see `auth:` below and docs/SECURITY.md.
+  host: "0.0.0.0"
+  port: 8080
+  # How often the SSE stream polls the database for new events.
+  sse_poll_sec: 2.0
+  # Where an operator reaches this appliance from a browser. Used only to put a
+  # working evidence link in alert emails; empty means no link rather than a
+  # guessed hostname the recipient cannot resolve.
+  public_url: ""
+  # Comma-separated browser origins allowed to call the API cross-site. Empty
+  # installs no CORS middleware: the SPA is served by this same process, and
+  # only a separate dev server needs this (e.g. http://localhost:5173).
+  cors_origins: ""
+
+auth:
+  # Accounts, sessions and the login rate limit (Phase 5).
+  #
+  # There is deliberately NO "auth: off" switch. A flag that turns
+  # authentication off is a flag that ships turned off, and what is behind this
+  # one is continuous video of people at work. A fresh appliance instead has no
+  # accounts and refuses every request until an installer runs, on the box:
+  #
+  #     argus user add ops --role ADMIN
+  #
+  # Roles are fixed: ADMIN (everything), RESPOND (triage + policies/cameras),
+  # REVIEW (triage), SYSTEM (health and metrics only — no footage). The matrix
+  # lives in argus/auth.py and is driven route-by-route in tests/test_auth.py.
+
+  # Absolute lifetime of a session, from login. A shift plus a handover: nobody
+  # should be asked to sign in mid-shift, and a browser left on a control-room
+  # desk should not still be authenticated tomorrow.
+  session_ttl_hours: 12.0
+  # Sign a session out after this long with no request. 0 disables it, which is
+  # what a permanently-displayed wall panel wants — a control-room screen nobody
+  # touches for a whole shift is a real deployment, and logging it out mid-shift
+  # is the worse failure.
+  session_idle_minutes: 480.0
+  # `last_seen_at` is only rewritten when it is this stale, so the console's 2 s
+  # live poll and its SSE connection do not become two writes a second on a
+  # database whose one writer is the vision engine.
+  session_touch_sec: 60.0
+  cookie_name: argus_session
+  # Set true the same day you put TLS in front of this box. Left false because
+  # the common install is plain HTTP on a segmented plant LAN, where a `Secure`
+  # cookie does not mean "more secure", it means "cannot sign in".
+  cookie_secure: false
+  # Lax, not Strict: api.public_url puts per-event links in alert emails, and
+  # Strict withholds the cookie on that first navigation — every alert link
+  # would land on a login screen. Lax still refuses the cross-site POST, which
+  # is where CSRF actually lives.
+  cookie_samesite: lax
+  # Failed sign-ins allowed per window, counted per username AND per source
+  # address independently, whichever trips first. Username-only would let one
+  # attacker lock every operator out of the plant; address-only would let one
+  # client walk the roster six passwords at a time. Measured: attempts 1-6 answer
+  # 401, the 7th answers 429 with Retry-After, and the correct password is
+  # refused while locked.
+  login_max_attempts: 6
+  login_window_sec: 300.0
+  login_lockout_sec: 300.0
+  # How long the attempt log is kept. Long enough to answer "who has been trying
+  # to get in this week"; swept by the retention job.
+  attempt_retention_days: 7.0
+
+eval:
+  # `argus eval` — the DEVELOPMENT harness that scores candidate vision models
+  # on this appliance's own policies, footage and triage verdicts. Nothing here
+  # runs during `argus run` or `argus api`; see argus/eval/__init__.py.
+  #
+  # Frame sampling for `--build-labels`. 5 s against the 62 s demo clip fills
+  # the 12-frame cap; a real NVR export wants this much larger, because the cap
+  # exists to keep the label file finishable by a human in one sitting.
+  sample_every_sec: 5.0
+  max_frames_per_video: 12
+  labels_path: evals/labels.yaml
+  # Derived data, gitignored: labels.yaml records each frame's source video and
+  # offset, so a fresh checkout re-cuts what it needs on the first run.
+  frames_dir: evals/frames
+  results_dir: evals
+  report_path: docs/VLM_EVAL.md
+  # One evaluation in flight, deliberately. This harness reports latency, and a
+  # latency measured at concurrency 4 describes a load test.
+  concurrency: 1
+  # What the appliance grants the served model, so it is what the local runner
+  # gets. Do not raise it to make the cloud candidates work — see below.
+  max_tokens: 192
+  # The cloud budget is separate and eight times larger, and that is a finding
+  # rather than a preference. OpenRouter charges a reasoning model's hidden
+  # chain of thought against `max_tokens`, and all four candidates below are
+  # reasoning models: at 192 the 2026-08-25 run spent the whole budget thinking
+  # and returned no answer on 91% of calls. Measured ceiling with reasoning
+  # bounded is ~470 completion tokens.
+  cloud_max_tokens: 1536
+  timeout_sec: 120
+  # Cloud candidates for `--cloud`. NAMING THEM IS NOT CALLING THEM: the runner
+  # that can reach these lives in argus/eval/openrouter.py, is imported only
+  # after --cloud is passed AND OPENROUTER_API_KEY is set, and no runtime module
+  # imports it (asserted in tests/test_eval.py).
+  #
+  # All four verified vision-capable on the OpenRouter catalog 2026-08-15.
+  # z-ai/glm-5.2 is deliberately absent: it is TEXT-ONLY there and cannot be
+  # given a frame at all. See the "excluded before measurement" section of
+  # docs/VLM_EVAL.md.
+  cloud_models:
+    - qwen/qwen3.8-flash "qwen/qwen3.8-27b,qwen/qwen3.8-max,google/gemini-3.7-flash,moonshotai/kimi-k3"
+  cloud_base_url: "https://openrouter.ai/api/v1"
+  cloud_key_env: OPENROUTER_API_KEY

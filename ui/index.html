@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="light dark" />
+    <meta name="referrer" content="no-referrer" />
+    <!--
+      No external origins, ever: this appliance runs air-gapped on a plant LAN.
+      Fonts are bundled (@fontsource), and the only hosts the page may talk to
+      are its own and the go2rtc gateway on the same box.
+    -->
+    <title>Argus — The Plant Observer</title>
+    <!--
+      The theme, before the first paint rather than after it.
+
+      React sets `data-theme` in an effect, which runs after the browser has
+      already painted the default `:root` — so a control room whose console
+      runs dark got a full-screen flash of white paper on every reload. Four
+      lines here, reading the same key `ui/src/lib/theme.ts` writes, and the
+      flash is gone. Inline because a separate file would paint first.
+    -->
+    <script>
+      (function () {
+        var stored = null;
+        try {
+          stored = window.localStorage.getItem('argus.theme');
+        } catch (error) {
+          /* private mode, or storage disabled: the default stands */
+        }
+        document.documentElement.dataset.theme =
+          stored === 'light' || stored === 'dark' ? stored : 'dark';
+      })();
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

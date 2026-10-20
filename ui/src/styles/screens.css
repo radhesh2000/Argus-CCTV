@@ -1,0 +1,2086 @@
+/* Per-screen layout. Grouped in the nav's own order so this file reads in the
+   same sequence as the product. */
+
+/* --- 01 live wall ------------------------------------------------------- */
+
+.wall__head {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 14px 22px;
+  border-bottom: 1px solid var(--border);
+}
+
+.wall__counts {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  font-size: var(--fs-body);
+  color: var(--text2);
+}
+.wall__counts > span {
+  display: flex;
+  align-items: baseline;
+  gap: 7px;
+}
+/* The number a supervisor crossed the room to read. */
+.wall__count {
+  font-family: var(--font-display);
+  font-size: var(--fs-figure);
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+.wall__count--warn {
+  color: var(--warn);
+  font-weight: 700;
+}
+
+.wall__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 14px 22px;
+}
+
+.wall__section {
+  font-size: var(--fs-label);
+  color: var(--dim);
+  letter-spacing: var(--track-strap);
+  text-transform: uppercase;
+  margin-bottom: 9px;
+}
+
+.wall__hot {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+.wall__grid {
+  display: grid;
+  gap: 10px;
+}
+
+.ticker {
+  border-top: 1px solid var(--border);
+  padding: 9px 22px;
+  display: flex;
+  align-items: center;
+  gap: 22px;
+  overflow: hidden;
+  background: var(--panel2);
+  flex-shrink: 0;
+}
+.ticker__label {
+  font-size: var(--fs-label);
+  color: var(--dim);
+  flex-shrink: 0;
+}
+.ticker__item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-meta);
+  white-space: nowrap;
+}
+
+/* focus view */
+
+.focus {
+  flex: 1;
+  display: flex;
+  gap: 1px;
+  min-height: 0;
+  background: var(--border);
+}
+
+.focus__stage {
+  flex: 1;
+  position: relative;
+  background: #08090b;
+  overflow: hidden;
+  min-width: 0;
+}
+
+.focus__id,
+.focus__meta,
+.focus__close {
+  position: absolute;
+  background: rgba(10, 12, 14, 0.65);
+  color: var(--on-video);
+  font-size: var(--fs-meta);
+  padding: 3px 8px;
+}
+.focus__id {
+  top: 12px;
+  left: 14px;
+}
+.focus__meta {
+  bottom: 12px;
+  left: 14px;
+  font-size: var(--fs-meta);
+  color: var(--on-video-dim);
+}
+.focus__close {
+  top: 12px;
+  right: 14px;
+  font-size: var(--fs-meta);
+  color: var(--on-video-dim);
+  cursor: pointer;
+}
+.focus__close:hover {
+  color: var(--on-video);
+}
+
+.focus__side {
+  width: 336px;
+  flex-shrink: 0;
+  background: var(--panel);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  overflow-y: auto;
+}
+
+.focus__bar {
+  height: 4px;
+  background: var(--track);
+  margin-top: 10px;
+}
+.focus__barfill {
+  height: 100%;
+  transition: width 0.6s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.focus__track {
+  display: flex;
+  gap: 10px;
+  font-size: var(--fs-meta);
+  color: var(--dim);
+}
+
+.focus__event {
+  display: flex;
+  gap: 9px;
+  align-items: baseline;
+  font-size: var(--fs-meta);
+}
+
+.focus__zonepick {
+  background: var(--panel2);
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  font-size: var(--fs-note);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--dim);
+  width: 100%;
+}
+
+/* --- 02 alert feed ------------------------------------------------------ */
+
+.feed {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.feed__filters {
+  width: 248px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.filter {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-meta);
+  color: var(--dim);
+  cursor: pointer;
+  width: 100%;
+}
+.filter:hover {
+  color: var(--text);
+}
+.filter--on {
+  color: var(--text);
+}
+.filter__box {
+  width: 12px;
+  height: 12px;
+  border: 1px solid var(--border-strong);
+  flex-shrink: 0;
+}
+
+.feed__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 18px 26px;
+  min-width: 0;
+}
+
+.feed__column {
+  max-width: 900px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.feed__pill {
+  align-self: center;
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--accent-text);
+  background: rgba(179, 52, 31, 0.12);
+  border: 1px solid rgba(179, 52, 31, 0.3);
+  padding: 3px 12px;
+  cursor: pointer;
+}
+.feed__pill:hover {
+  background: rgba(179, 52, 31, 0.2);
+}
+
+.alert {
+  display: flex;
+  gap: 14px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 12px;
+  align-items: stretch;
+  transition: border-color 0.16s ease, transform 0.18s ease;
+}
+.alert:hover {
+  border-color: var(--border-strong);
+  transform: translateY(-2px);
+}
+
+.alert__thumb {
+  width: 196px;
+  flex-shrink: 0;
+  aspect-ratio: 16 / 9;
+  position: relative;
+  overflow: hidden;
+  background: #0d0f12;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+.alert__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.alert__clip {
+  position: absolute;
+  bottom: 5px;
+  right: 6px;
+  font-size: var(--fs-label);
+  color: var(--on-video-dim);
+  background: var(--on-video-scrim);
+  padding: 1px 4px;
+}
+
+.alert__body {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+}
+.alert__meta {
+  font-size: var(--fs-meta);
+  color: var(--dim);
+}
+
+/* The span line on an ongoing condition: when it started, how long it has run,
+   how many times the model has said yes. Set as its own row rather than folded
+   into `.alert__meta`, because it is the sentence that distinguishes "somebody
+   dropped a wrapper" from "this has been on the floor since the shift began". */
+.condition {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-meta);
+  color: var(--dim);
+}
+.condition__line {
+  font-size: var(--fs-note);
+  letter-spacing: 0.02em;
+}
+.condition--live .condition__line {
+  color: var(--text2);
+}
+/* The one moving thing on the card, and it is 6 px across: a condition that is
+   still true is the only state on this screen that changes without the reader
+   doing anything. `prefers-reduced-motion` stops it, in base.css. */
+.condition__dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--warn);
+  animation: breathe 3s ease-in-out infinite;
+}
+
+/* The model's own sentence, set as the quotation it is. */
+.alert__reason {
+  font-size: var(--fs-lede);
+  color: var(--text);
+  line-height: var(--lh-body);
+  max-width: 68ch;
+}
+
+.alert__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  justify-content: center;
+  flex-shrink: 0;
+  min-width: 156px;
+}
+.alert__actions .button {
+  text-align: center;
+  padding: 7px 12px;
+  min-height: 32px;
+}
+
+/* --- 03 triage ---------------------------------------------------------- */
+
+.triage {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.triage__strip {
+  width: 152px;
+  flex-shrink: 0;
+  border-right: 1px solid var(--border);
+  padding: 12px 10px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+/* Which end of the backlog the reviewer is working. Two words, above the
+   thumbnails, because it changes what every thumbnail below it means. */
+.triage__order {
+  display: flex;
+  gap: 4px;
+}
+.triage__orderbtn {
+  flex: 1;
+  padding: 3px 0;
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: 0.05em;
+  color: var(--dim);
+  background: transparent;
+  border: 1px solid var(--border);
+  cursor: pointer;
+}
+.triage__orderbtn--on {
+  color: var(--text);
+  border-color: var(--border-strong);
+  background: var(--hover);
+}
+
+.triage__thumb {
+  padding: 5px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  width: 100%;
+}
+.triage__thumb--on {
+  border-color: var(--accent);
+}
+.triage__thumbimg {
+  aspect-ratio: 16 / 9;
+  background: #0d0f12;
+  overflow: hidden;
+}
+.triage__thumbimg img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.triage__thumbmeta {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.triage__main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 18px 22px;
+  gap: 14px;
+}
+
+.triage__head {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.triage__stage {
+  flex: 1;
+  position: relative;
+  overflow: hidden;
+  background: #08090b;
+  min-height: 0;
+}
+.triage__stage img,
+.triage__stage video {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+/* The containing block the detection overlay is positioned against. It is the
+   stage box, which is the same arrangement the Evidence Viewer uses — and it
+   carries the same known limitation: the snapshot is letterboxed inside it by
+   `object-fit: contain`, so on a camera whose frame is a different shape from
+   the stage the marks sit slightly off the people. Fixing that means measuring
+   the contained picture, as `VideoFrame` does for live tiles, and it should be
+   fixed for both screens at once rather than for this one alone. */
+.triage__frame {
+  position: relative;
+  width: 100%;
+  height: 100%;
+}
+
+.triage__verdicts {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+/* Three answers to one question, and they are deliberately not three of the
+   same button. CONFIRM is the only filled control on the screen; FALSE
+   POSITIVE is its outlined peer — the same size, so nothing is nudging the
+   reviewer, but visibly a different kind of mark; SKIP has no box at all.
+   The shipped build set the first two in near-identical soft fills, which on a
+   surface where one answer files a safety incident is not a style question. */
+.verdict {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 15px;
+  font-size: var(--fs-body);
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 0.16s ease, transform 0.18s ease;
+}
+.verdict--confirm {
+  flex: 1;
+  background: var(--good);
+  color: var(--panel);
+  border: 1px solid var(--good);
+}
+.verdict--confirm:hover {
+  background: var(--text);
+  border-color: var(--text);
+  transform: translateY(-1px);
+}
+.verdict--confirm .key-hint {
+  border-color: var(--panel);
+  color: var(--panel);
+}
+.verdict--false {
+  flex: 1;
+  background: none;
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+}
+.verdict--false:hover {
+  background: var(--hover);
+  border-color: var(--text);
+}
+.verdict--skip {
+  padding: 15px 18px;
+  color: var(--dim);
+  border: 1px solid transparent;
+}
+.verdict--skip:hover {
+  color: var(--text);
+}
+.verdict--skip .key-hint {
+  border-color: var(--border-strong);
+}
+
+.triage__side {
+  width: 312px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  padding: 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* --- 04 search ---------------------------------------------------------- */
+
+.search {
+  flex: 1;
+  overflow-y: auto;
+  padding: 34px 40px;
+  min-width: 0;
+}
+
+.search__inner {
+  max-width: 1100px;
+  margin: 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+}
+
+.search__bar {
+  display: flex;
+  gap: 10px;
+}
+
+.search__field {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  padding: 14px 18px;
+}
+.search__field input {
+  flex: 1;
+  background: none;
+  border: none;
+  outline: none;
+  font-size: var(--fs-lede);
+}
+.search__field input::placeholder {
+  color: var(--faint);
+}
+.search__field input:disabled {
+  cursor: not-allowed;
+}
+.search__caret {
+  width: 2px;
+  height: 16px;
+  background: var(--accent);
+}
+
+.search__saved {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.search__chip {
+  font-size: var(--fs-meta);
+  color: var(--dim);
+  border: 1px solid var(--border);
+  padding: 4px 12px;
+  cursor: pointer;
+}
+.search__chip:hover:not(:disabled) {
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.search__chip:disabled {
+  cursor: not-allowed;
+  color: var(--faint);
+}
+
+/* A saved chip and its forget button share one border, so the pair reads as
+   one control rather than as a chip with a stray × beside it. */
+.search__savedchip {
+  display: inline-flex;
+  align-items: stretch;
+}
+.search__savedchip .search__chip {
+  border-right: none;
+}
+.search__chipx {
+  font-size: var(--fs-meta);
+  color: var(--dim);
+  border: 1px solid var(--border);
+  border-left: none;
+  padding: 4px 8px;
+  cursor: pointer;
+  background: none;
+}
+.search__chipx:hover {
+  color: var(--crit);
+  border-color: var(--border-strong);
+}
+
+.search__filters {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.search__select {
+  font-size: var(--fs-meta);
+  color: var(--dim);
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 6px 10px;
+}
+.search__toggle {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--fs-meta);
+  color: var(--dim);
+  cursor: pointer;
+}
+
+.search__summary {
+  font-size: var(--fs-body);
+  color: var(--text2);
+}
+
+.search__results {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.search__tile {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  padding: 0;
+  cursor: pointer;
+  text-align: left;
+  display: block;
+}
+.search__tile:hover {
+  border-color: var(--border-strong);
+}
+.search__tile--on {
+  border-color: var(--accent);
+}
+.search__tileframe {
+  aspect-ratio: 16 / 9;
+  position: relative;
+  background: var(--panel2);
+  overflow: hidden;
+}
+.search__tileframe img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.search__tilebadge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  padding: 2px 6px;
+  background: rgba(8, 9, 11, 0.72);
+  color: var(--on-video);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+.search__tilemeta {
+  padding: 9px 11px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+.search__tileline {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-note);
+  color: var(--dim);
+  justify-content: space-between;
+}
+.search__tilescore {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+.search__confbar {
+  height: 3px;
+  background: var(--track);
+  flex: 1;
+}
+.search__confbar > div {
+  height: 100%;
+  background: var(--accent);
+}
+
+.search__detail {
+  display: flex;
+  gap: 18px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 16px;
+}
+.search__detailframe {
+  width: 420px;
+  flex-shrink: 0;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: var(--panel2);
+}
+.search__detailframe img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+.search__detailbody {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  min-width: 0;
+}
+.search__note {
+  font-size: var(--fs-meta);
+  color: var(--accent-text);
+  background: var(--accent-soft);
+  padding: 8px 11px;
+}
+.search__actions {
+  display: flex;
+  gap: 8px;
+  margin-top: auto;
+  flex-wrap: wrap;
+}
+
+/* --- 05 policy studio --------------------------------------------------- */
+
+.studio {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.studio__list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px;
+  min-width: 0;
+}
+
+.studio__head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.studio__head .button {
+  margin-left: auto;
+}
+
+.studio__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(270px, 1fr));
+  gap: 12px;
+}
+
+.policy {
+  background: var(--panel);
+  padding: 16px;
+  cursor: pointer;
+  border: 1px solid var(--border);
+  text-align: left;
+  display: block;
+  width: 100%;
+  transition: border-color 0.16s ease;
+}
+.policy:hover {
+  border-color: var(--border-strong);
+}
+.policy--on {
+  border-color: var(--accent);
+}
+.policy__engine {
+  font-size: var(--fs-note);
+  color: var(--dim);
+  margin: 8px 0 12px;
+}
+.policy__stats {
+  display: flex;
+  gap: 16px;
+  font-size: var(--fs-note);
+}
+.policy__figure {
+  font-family: var(--font-display);
+  font-size: var(--fs-figure);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-tight);
+}
+.policy__caption {
+  color: var(--dim);
+  font-size: var(--fs-label);
+}
+
+.studio__inspector {
+  width: 440px;
+  flex-shrink: 0;
+  border-left: 1px solid var(--border);
+  overflow-y: auto;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+  background: var(--panel2);
+}
+
+.studio__prompt {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 12px;
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text2);
+}
+
+.studio__schema {
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 12px;
+  font-size: var(--fs-meta);
+  line-height: var(--lh-body);
+  color: var(--accent-text);
+}
+
+/* One camera this prompt policy is sampling, and what the model last said
+   about it. Bordered on the left like a quotation, because that is what the
+   second line is. */
+.studio__schedule {
+  border-left: 2px solid var(--border-strong);
+  padding-left: 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.studio__facts {
+  display: flex;
+  gap: 14px;
+  font-size: var(--fs-meta);
+  color: var(--dim);
+  flex-wrap: wrap;
+}
+.studio__facts .mono {
+  color: var(--text);
+}
+
+.gate__track {
+  flex: 1;
+  height: 5px;
+  background: var(--track);
+  position: relative;
+}
+.gate__fill {
+  height: 100%;
+}
+.gate__mark {
+  position: absolute;
+  top: -4px;
+  width: 2px;
+  height: 13px;
+  background: var(--text);
+}
+
+/* --- 06 cameras & zones ------------------------------------------------- */
+
+.cameras {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+.cameras__main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px;
+  min-width: 0;
+}
+
+.cameras__head {
+  display: flex;
+  align-items: center;
+  margin-bottom: 16px;
+}
+.cameras__head .button {
+  margin-left: auto;
+}
+
+.table {
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.table__head,
+.table__row {
+  display: grid;
+  grid-template-columns: 190px 1fr 150px 84px 74px 96px;
+  align-items: center;
+  gap: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.table__head {
+  padding: 11px 16px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  color: var(--dim);
+  letter-spacing: var(--track-label);
+  border-bottom: 1px solid var(--border);
+  background: var(--panel2);
+}
+
+.table__row {
+  padding: 13px 16px;
+  min-height: 46px;
+  border-bottom: 1px solid var(--line2);
+  cursor: pointer;
+  width: 100%;
+  text-align: left;
+}
+.table__row:hover {
+  background: var(--hover2);
+}
+.table__row--on {
+  background: var(--hover2);
+}
+.table__row--static {
+  cursor: default;
+}
+
+.table--detectors .table__head,
+.table--detectors .table__row {
+  grid-template-columns: 1.5fr 124px 124px 146px 100px 100px;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* The selected camera opens in place, under its own row and at the table's
+   full width: the picture is what the operator draws zones on, so it gets the
+   room a side panel could not give it. */
+.cameras__expand {
+  padding: 18px 16px 22px;
+  border-bottom: 1px solid var(--border);
+  background: var(--panel2);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  scroll-margin: 16px;
+}
+.cameras__form {
+  max-width: 640px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Picture left, its controls immediately beside it. The picture's width is
+   bounded by the viewport's height as well as the row's width, so a 16:9 frame
+   on a very wide screen stops before it pushes the editor below the fold; the
+   controls follow the picture rather than the far edge of the table. On a
+   narrow screen they wrap underneath. */
+.zonelayout {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 24px;
+  align-items: flex-start;
+}
+.zonelayout__stage {
+  flex: 0 1 calc(68vh * 16 / 9);
+  min-width: min(100%, 480px);
+}
+.zonelayout__side {
+  flex: 0 0 320px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 0;
+}
+
+.zonecanvas {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  background: #08090b;
+  border: 1px solid var(--border);
+  user-select: none;
+}
+
+.zonecanvas__vertex {
+  position: absolute;
+  width: 11px;
+  height: 11px;
+  margin: -5px;
+  border-radius: 50%;
+  background: #101214;
+  border: 2px solid var(--accent);
+  cursor: grab;
+  z-index: 3;
+}
+.zonecanvas__vertex:active {
+  cursor: grabbing;
+}
+
+.zonecanvas__hint {
+  position: absolute;
+  bottom: 8px;
+  left: 10px;
+  right: 10px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  color: var(--on-video-dim);
+  background: var(--on-video-scrim);
+  padding: 3px 7px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  z-index: 3;
+}
+
+.field {
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  padding: 11px 13px;
+  font-size: var(--fs-body);
+  width: 100%;
+  outline: none;
+  transition: border-color 0.16s ease;
+}
+.field:hover:not(:disabled) {
+  border-color: var(--text2);
+}
+.field:focus {
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+.field::placeholder {
+  color: var(--faint);
+}
+.field--readonly {
+  border-color: var(--border);
+  color: var(--dim);
+  text-align: center;
+  font-size: var(--fs-body);
+}
+
+.stepper {
+  display: flex;
+  align-items: center;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+}
+.stepper button {
+  padding: 9px 14px;
+  color: var(--dim);
+  cursor: pointer;
+}
+.stepper button:hover {
+  color: var(--text);
+}
+.stepper span {
+  flex: 1;
+  text-align: center;
+  font-size: var(--fs-body);
+}
+
+/* --- 07 analytics ------------------------------------------------------- */
+
+.analytics {
+  flex: 1;
+  overflow-y: auto;
+  min-width: 0;
+}
+
+.analytics__inner {
+  max-width: 1220px;
+  margin: 0 auto;
+  padding: 28px 36px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.analytics__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.analytics__window {
+  display: flex;
+  border: 1px solid var(--border);
+}
+.analytics__windowbtn {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--dim);
+  padding: 5px 12px;
+  cursor: pointer;
+  background: var(--panel);
+}
+.analytics__windowbtn--on {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+.analytics__cards {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+}
+.scorecard {
+  padding: 16px;
+}
+
+.legend-swatch {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 5px;
+}
+
+.trend {
+  display: flex;
+  align-items: flex-end;
+  gap: 3px;
+  height: 110px;
+}
+.trend__col {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  gap: 1px;
+  height: 100%;
+  min-width: 2px;
+}
+.trend__axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-label);
+  color: var(--dim);
+  margin-top: 6px;
+}
+
+.analytics__split {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr;
+  gap: 12px;
+}
+
+.heat {
+  display: grid;
+  gap: 3px;
+  align-items: center;
+}
+.heat__head {
+  font-size: var(--fs-label);
+  color: var(--dim);
+  text-align: center;
+}
+.heat__cell {
+  text-align: center;
+  padding: 7px 0;
+  font-size: var(--fs-note);
+}
+
+.bytype {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: var(--fs-meta);
+}
+.bytype__label {
+  width: 240px;
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.bytype__origin {
+  font-size: var(--fs-label);
+  color: var(--dim);
+  border: 1px solid var(--border);
+  padding: 1px 4px;
+  margin-right: 7px;
+}
+.bytype__track {
+  flex: 1;
+  height: 8px;
+  background: var(--track);
+  position: relative;
+}
+.bytype__raw {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--border);
+}
+.bytype__verified {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: var(--accent);
+}
+.bytype__value {
+  width: 84px;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--text2);
+}
+.bytype__foot {
+  font-size: var(--fs-note);
+  color: var(--dim);
+  margin-top: 14px;
+  border-top: 1px solid var(--line2);
+  padding-top: 10px;
+  line-height: var(--lh-body);
+}
+
+.policyreports {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 14px;
+}
+.policycard {
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: 3px;
+  background: var(--panel2);
+}
+.policycard__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.policycard__swatch {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  flex: none;
+}
+.policycard__name {
+  font-weight: 600;
+  font-size: var(--fs-meta);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.policycard__stack {
+  display: flex;
+  height: 8px;
+  border-radius: 2px;
+  overflow: hidden;
+  background: var(--track);
+}
+.policycard__stack span {
+  display: block;
+  height: 100%;
+}
+.policycard__spark {
+  display: flex;
+  align-items: flex-end;
+  gap: 1px;
+  height: 28px;
+  margin-top: 12px;
+}
+.policycard__spark span {
+  flex: 1;
+  min-width: 1px;
+  border-radius: 1px 1px 0 0;
+}
+
+/* --- 08 model health ---------------------------------------------------- */
+
+.health {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 26px;
+  min-width: 0;
+}
+
+.health__inner {
+  max-width: 1240px;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* The design draws five vital cards from a list; this appliance publishes six
+   (it separates ENGINE from VLM QUEUE, which the mock-up folded together).
+   auto-fit keeps the card proportions the design specifies at either count and
+   reflows instead of overflowing on a narrow control-room screen. */
+.health__vitals {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+
+.vital {
+  padding: 15px;
+  border-top: 2px solid transparent;
+}
+/* A vital that is *not* fine stops being one of six identical cards. Six cards
+   at the same weight is a wall of numbers; one card with a rule above it and
+   the rest quiet is a screen that has already answered the question. */
+.vital--bad {
+  border-top-color: var(--crit);
+  background: var(--warn-soft);
+}
+.vital--warn {
+  border-top-color: var(--warn);
+}
+.vital__label {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  text-transform: uppercase;
+  color: var(--dim);
+  letter-spacing: var(--track-label);
+}
+.vital__value {
+  font-family: var(--font-display);
+  font-size: var(--fs-vital);
+  font-variant-numeric: tabular-nums;
+  line-height: var(--lh-tight);
+  margin-top: 9px;
+}
+.vital--bad .vital__value {
+  color: var(--crit);
+}
+.vital__sub {
+  font-size: var(--fs-note);
+  color: var(--dim);
+  margin-top: 5px;
+  line-height: var(--lh-snug);
+}
+
+.health__vlm {
+  display: block;
+}
+
+.vlm {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vlm__head {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.vlm__model {
+  font-size: var(--fs-meta);
+  color: var(--text2);
+}
+.vlm__endpoint {
+  font-size: var(--fs-note);
+  color: var(--dim);
+  margin-left: auto;
+}
+
+.vlm__facts {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 10px;
+  border-top: 1px solid var(--line2);
+  border-bottom: 1px solid var(--line2);
+  padding: 12px 0;
+}
+.vlm__factvalue {
+  font-size: var(--fs-figure);
+  font-weight: 700;
+  margin-top: 5px;
+}
+
+.vlm__degraded {
+  border-left: 2px solid var(--warn);
+  padding-left: 12px;
+}
+.vlm__reason {
+  font-size: var(--fs-body);
+  color: var(--warn);
+  font-weight: 600;
+  line-height: var(--lh-body);
+  word-break: break-word;
+  margin-bottom: 8px;
+}
+.vlm__fix,
+.vlm__note {
+  font-size: var(--fs-meta);
+  color: var(--dim);
+  line-height: var(--lh-body);
+  max-width: 78ch;
+}
+.vlm__note {
+  color: var(--faint);
+}
+
+.table--schedules .table__head,
+.table--schedules .table__row {
+  grid-template-columns: 1.3fr 190px 92px 124px 92px 1.6fr;
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* Long model sentences and policy labels truncate rather than reflowing a
+   grid row into two lines. */
+.ellipsis {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  min-width: 0;
+}
+
+.health__split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.fps {
+  display: flex;
+  align-items: flex-end;
+  gap: 5px;
+  height: 64px;
+}
+/* Capped so a two-camera appliance draws two bars rather than two walls; at
+   the design's twelve cameras the cap never binds. */
+.fps__col {
+  flex: 1;
+  max-width: 44px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  height: 100%;
+}
+.fps__axis {
+  display: flex;
+  justify-content: space-between;
+  font-size: var(--fs-label);
+  color: var(--dim);
+  margin-top: 5px;
+}
+
+/* --- 09 settings -------------------------------------------------------- */
+
+.settings {
+  flex: 1;
+  overflow-y: auto;
+  padding: 22px 26px;
+  min-width: 0;
+}
+
+.settings__inner {
+  max-width: 1180px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.routing__head,
+.routing__row {
+  display: grid;
+  grid-template-columns: 1.3fr 1.6fr 1fr;
+  align-items: center;
+}
+.routing__head {
+  font-size: var(--fs-label);
+  color: var(--dim);
+  letter-spacing: var(--track-label);
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.routing__row {
+  padding: 10px 0;
+  border-bottom: 1px solid var(--line2);
+}
+
+.settings__channels {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-top: 14px;
+  flex-wrap: wrap;
+}
+.channel {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--dim);
+  border: 1px solid var(--border);
+  padding: 3px 10px;
+}
+.channel--on {
+  color: var(--good);
+  border-color: var(--good-border);
+  background: var(--good-soft);
+}
+
+.settings__split {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+/* --- users & roles (Settings, ADMIN only) ------------------------------- */
+
+.users__row {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+  padding: 7px 0;
+}
+.users__row--off {
+  opacity: 0.55;
+}
+
+/* The design's circular initials, the one round thing in a document with
+   `border-radius: 0` everywhere else — it is a person, not a surface. */
+.users__initials {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--accent-soft);
+  color: var(--accent-text);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--fs-meta);
+  font-weight: 600;
+  flex-shrink: 0;
+}
+
+.users__who {
+  flex: 1;
+  min-width: 0;
+}
+.users__name {
+  font-size: var(--fs-body);
+}
+.users__meta {
+  font-size: var(--fs-note);
+  color: var(--dim);
+}
+
+.users__role {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--dim);
+  border: 1px solid var(--border);
+  background: none;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.users__role:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.users__actions {
+  display: flex;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.users__add {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--border);
+}
+.users__add input,
+.users__add select {
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  padding: 10px 12px;
+  font-size: var(--fs-body);
+  outline: none;
+  width: 100%;
+}
+.users__add input::placeholder {
+  color: var(--faint);
+}
+.users__add input:focus,
+.users__add select:focus {
+  border-color: var(--focus);
+  box-shadow: inset 0 0 0 1px var(--focus);
+}
+/* A label above the box, not a placeholder inside it. Placeholder-only
+   labelling is a form that goes blank the moment somebody starts typing. */
+.users__add label {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.users__add--wide {
+  grid-column: 1 / -1;
+}
+
+.users__note {
+  font-size: var(--fs-meta);
+  color: var(--dim);
+  line-height: var(--lh-body);
+}
+.users__note--bad {
+  color: var(--crit);
+}
+
+/* --- login ------------------------------------------------------------- */
+
+.login {
+  min-height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg);
+  padding: 40px 20px;
+}
+
+.login__sheet {
+  width: 100%;
+  max-width: 420px;
+  background: var(--panel);
+  border: 1px solid var(--border);
+  padding: 34px 34px 20px;
+}
+
+.login__plate {
+  text-align: center;
+  padding-bottom: 18px;
+  /* The masthead's double rule, so the first screen a plant sees is already
+     the same document as the ninth. */
+  border-bottom: 3px double var(--border-strong);
+}
+.login__title {
+  font-family: var(--font-display);
+  font-size: var(--fs-plate);
+  line-height: 1;
+  letter-spacing: 0.05em;
+}
+.login__strap {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--dim);
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  margin-top: 9px;
+}
+
+.login__form {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  padding: 26px 0 22px;
+}
+
+.login__field {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+.login__field input {
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  padding: 11px 13px;
+  font-size: var(--fs-lede);
+  outline: none;
+  width: 100%;
+}
+.login__field input:focus {
+  border-color: var(--accent);
+}
+.login__field input:disabled {
+  opacity: 0.6;
+}
+
+.login__submit {
+  background: var(--accent);
+  color: var(--bg);
+  border: 1px solid var(--accent);
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  font-weight: 700;
+  letter-spacing: var(--track-strap);
+  text-transform: uppercase;
+  padding: 14px;
+  transition: background-color 0.16s ease, border-color 0.16s ease;
+}
+.login__submit:hover:not(:disabled) {
+  background: var(--accent-h);
+}
+/* Not 45% opacity. Ink at 45% over paper composites to a mid-grey that reads
+   as a weak *enabled* button to anybody who has never seen this screen working
+   — which is every first-time viewer of it. Disabled is its own treatment. */
+.login__submit:disabled {
+  background: var(--track);
+  color: var(--faint);
+  border: 1px solid var(--border);
+  cursor: not-allowed;
+}
+
+.login__error,
+.login__notice {
+  font-size: var(--fs-meta);
+  padding: 9px 12px;
+  border: 1px solid var(--border);
+  background: var(--bg);
+}
+.login__error {
+  color: var(--crit);
+  border-color: var(--crit);
+}
+.login__notice {
+  color: var(--warn);
+  border-color: var(--warn-border);
+  background: var(--warn-soft);
+}
+
+.login__bootstrap {
+  padding: 24px 0 20px;
+}
+.login__prose {
+  font-size: var(--fs-body);
+  color: var(--text2);
+  line-height: var(--lh-body);
+  margin: 0 0 12px;
+}
+.login__command {
+  font-family: var(--font-mono);
+  font-size: var(--fs-meta);
+  background: var(--bg);
+  border: 1px solid var(--border-strong);
+  padding: 11px 13px;
+  margin: 0 0 14px;
+  overflow-x: auto;
+  white-space: pre;
+}
+
+.login__foot {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding-top: 14px;
+  border-top: 1px solid var(--line2);
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  color: var(--dim);
+  text-align: center;
+}
+
+/* --- the masthead's user menu ------------------------------------------ */
+
+.whoami {
+  position: relative;
+}
+.whoami__button {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  color: var(--dim);
+  border: 1px solid var(--border-strong);
+  padding: 2px 8px;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+.whoami__button:hover {
+  background: var(--accent);
+  color: var(--bg);
+}
+.whoami__role {
+  opacity: 0.65;
+}
+
+.whoami__menu {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 30;
+  min-width: 232px;
+  background: var(--panel);
+  border: 1px solid var(--border-strong);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  animation: slidein 0.16s ease both;
+  text-align: left;
+}
+.whoami__who {
+  font-size: var(--fs-body);
+}
+.whoami__detail {
+  font-family: var(--font-mono);
+  font-size: var(--fs-note);
+  color: var(--dim);
+  line-height: var(--lh-body);
+}
+.whoami__signout {
+  font-family: var(--font-mono);
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  border: 1px solid var(--border-strong);
+  padding: 6px;
+  cursor: pointer;
+  transition: background-color 0.16s ease, color 0.16s ease;
+}
+.whoami__signout:hover {
+  background: var(--crit);
+  border-color: var(--crit);
+  color: var(--panel);
+}
+
+/* --------------------------------------------------------------------------
+   Authoring: the policy editor, the scope picker, the live prompt test and
+   camera enrolment (Phase 5).
+
+   Same furniture as the rest of the console — square corners, `--panel` on
+   `--panel2`, mono for anything the appliance said and prose for anything a
+   person wrote. Nothing here introduces a new visual idea, because an
+   authoring form that looks like a different product is one an operator
+   distrusts on sight.
+   -------------------------------------------------------------------------- */
+
+.field--inline {
+  width: auto;
+  padding: 4px 8px;
+  font-size: var(--fs-note);
+}
+
+.policy-edit {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.policy-edit__kinds {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.policy-edit__field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.policy-edit__row {
+  display: flex;
+  gap: 12px;
+}
+
+.policy-edit__prompt {
+  font-family: inherit;
+  line-height: var(--lh-body);
+  resize: vertical;
+}
+
+.policy-edit__hint {
+  font-size: var(--fs-meta);
+  color: var(--dim);
+  line-height: var(--lh-body);
+}
+
+.policy-edit__toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: var(--fs-meta);
+  color: var(--dim);
+  cursor: pointer;
+}
+
+/* The scope picker. A camera is a row; its zones are chips underneath, greyed
+   when the whole camera is selected — because a whole-camera row swallows the
+   zone rows beside it, and the control has to show what the engine does. */
+.scope {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--border);
+  background: var(--panel);
+  max-height: 210px;
+  overflow-y: auto;
+}
+
+.scope__camera {
+  border-top: 1px solid var(--border);
+}
+
+.scope__row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  width: 100%;
+  padding: 8px 11px;
+  font-size: var(--fs-meta);
+  color: var(--text2);
+  text-align: left;
+  cursor: pointer;
+}
+.scope__row:hover {
+  background: var(--hover);
+}
+.scope__row--on {
+  background: var(--accent-soft);
+  color: var(--accent-text);
+}
+
+.scope__hint {
+  margin-left: auto;
+  font-size: var(--fs-note);
+  color: var(--dim);
+}
+
+.scope__zones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  padding: 0 11px 9px 22px;
+}
+
+.chip-button--on {
+  background: var(--accent);
+  color: var(--bg);
+  border-color: var(--accent);
+}
+.chip-button:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+.chip-button:disabled:hover {
+  background: none;
+  color: var(--dim);
+}
+
+/* The live prompt test. The frame is 16:9 with the model's grounding box drawn
+   over it in the coordinates it answered in — which for a zone-scoped test are
+   the crop's, and the crop is what is displayed, so they line up. */
+.livetest {
+  border: 1px solid var(--border);
+  overflow: hidden;
+}
+
+.livetest__frame {
+  position: relative;
+  aspect-ratio: 16 / 9;
+  background: linear-gradient(160deg, #171a20, #131a18 60%, #08090b);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.livetest__frame img {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  display: block;
+}
+
+.livetest__box {
+  position: absolute;
+  border: 1.5px solid var(--warn);
+  pointer-events: none;
+}
+
+.livetest__stamp {
+  position: absolute;
+  left: 0;
+  bottom: 0;
+  padding: 3px 7px;
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  color: var(--on-video-dim);
+  background: rgba(8, 9, 11, 0.72);
+}
+
+.livetest__empty {
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-strap);
+  color: var(--dim);
+}
+
+.livetest__answer {
+  padding: 11px 13px;
+  background: var(--panel);
+  font-size: var(--fs-body);
+  line-height: var(--lh-body);
+  color: var(--text);
+}
+
+/* Camera enrolment. */
+.cameras__actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+}
+.cameras__actions .button {
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+
+.cameras__source {
+  font-size: var(--fs-note);
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.probe {
+  border: 1px solid var(--border);
+  background: var(--panel);
+  padding: 10px 12px;
+  margin-top: 10px;
+}
+
+.probe__verdict {
+  font-size: var(--fs-label);
+  letter-spacing: var(--track-label);
+  margin-bottom: 5px;
+}
+
+.probe__detail {
+  font-size: var(--fs-meta);
+  line-height: var(--lh-body);
+  color: var(--dim);
+  word-break: break-word;
+}
